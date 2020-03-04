@@ -25,9 +25,6 @@ class MapView {
     this.pick_dir  = [ undefined, undefined, undefined ];
     
     this.dbg_modelspace = [ undefined, undefined, undefined ];
-    this.dbg_raycast_state = [ undefined, undefined ]; // 距离，类型
-    
-    this.dbg_trace = false;
     
     // 上一次渲染时的extrude状态
     this.extrudes = { }
@@ -242,8 +239,9 @@ class MapView {
   Pan(delta_longitude, delta_latitude) {
     this.longitude += delta_longitude; this.latitude += delta_latitude
   }
-  
   Zoom(delta_zoom) { this.zoom *= delta_zoom; }
+  RotY(delta_roty) { this.rot_y += delta_roty; }
+  RotX(delta_rotx) { this.rot_x += delta_rotx; }
   
   ChangeDetailLevel(delta) {
     let d = this.detail_level + delta;
@@ -324,13 +322,9 @@ class MapView {
         for (let ip = 0; ip < polys.length; ip++) {
           let poly = polys[ip][1];
           let outline = polys[ip][0];
-          let t;
           
           // 如果 extrude > 0 就和侧边求交点
           if (extrude > 0) {
-            if (this.dbg_trace) {
-              console.log("" + path);
-            }
             for (let iip=0; iip < outline.length; iip += 2) {
               let iip1 = (iip + 1) % outline.length;
               let iip2 = (iip + 2) % outline.length;
@@ -339,38 +333,25 @@ class MapView {
               let x1 = outline[iip2], y1 = outline[iip3];
               let p0 = [ x0, y0, 0 ], p1 = [ x1, y1, 0 ];
               let p2 = [ x0, y0, extrude ];
-              const tmp = IntersectRayAndPlane(this.pick_orig, this.pick_dir, p0, p1, p2);
-              let proj = tmp[0], t = tmp[1];
-              
-              let trace = "Extrude " + p0 + ", " + p1 + ", " + p2;
-              
+              let proj = IntersectRayAndPlane(this.pick_orig, this.pick_dir, p0, p1, p2);
               if (proj != undefined) {
                 this.dbg_modelspace = proj;
-                if (ret[1] == undefined || ret[1] >= t) {
-                  ret[0] = path; ret[1] = t;
-                  this.dbg_raycast_state = [ t, "extrude" ];
-                }
-                trace = trace + " (hit)";
-              } else {
-                trace = trace + " (not hit)";
+                ret[0] = path;
+                return;
               }
-              if (this.dbg_trace) { console.log(trace); }
             }
           }
           
           // 如果没有extrude，就用在Z=0平面上的交点
           var tact = [ this.tact_modelspace[0], this.tact_modelspace[1], 0 ];
-          t = undefined;
           
           // 不然的话，就计算一下新的交点
           if (extrude > 0) {
-            t = (this.pick_orig[2] - extrude) / (-this.pick_dir[2]);
-            let xx = this.pick_orig[0] + this.pick_dir[0] * t;
-            let yy = this.pick_orig[1] + this.pick_dir[1] * t;
+            let k = (this.pick_orig[2] - extrude) / (-this.pick_dir[2]);
+            let xx = this.pick_orig[0] + this.pick_dir[0] * k;
+            let yy = this.pick_orig[1] + this.pick_dir[1] * k;
             //console.log(path + "'s extrude is > 0, tact: " + tact + " > " + xx + yy)
             tact = [xx, yy, 0];
-          } else {
-            t = this.pick_orig[2] / (-this.pick_dir[2]);
           }
           
           for (let iip=0; iip < poly.length; iip += 6) {
@@ -382,14 +363,8 @@ class MapView {
             let intersected = PointInTriangle(tact, [a,b,c]);
             
             if (intersected) {
-              if (ret[1] == undefined || ret[1] > t) {
-                //console.log(" sect " + tact + " vs " + a + " " + b + " " + c)
-                //PointInTriangle(tact, [a,b,c], 0, true)
-                ret[0] = path;
-                ret[1] = t;
-                this.dbg_raycast_state = [ t, "no_extrude" ];
-              }
-              break; // 只可能相交一次
+              ret[0] = path;
+              return;
             }
           }
         }
@@ -399,25 +374,11 @@ class MapView {
   }
   
   CheckIntersection() {
-    if (this.dbg_trace) {
-      console.log("[start raycast test trace] o=" + this.pick_orig + ", d=" + this.pick_dir);
-    }
     this.tact_path = undefined;
-    let ret = [ undefined, undefined ]; // 路径，T
-    this.dbg_raycast_state = [ null, undefined]
+    let ret = [ undefined ];
     this.do_CheckIntersection(verts, [], 1, ret);
     //console.log("CheckIntersection result: " + ret[0])
     this.tact_path = ret[0];
-    if (this.dbg_trace) {
-      console.log(this.tact_path);
-    }
-    this.dbg_trace = false;
-  }
-  
-  GetRaycastDbgInfo() {
-    let ret = "" + this.dbg_raycast_state[0] + "-" + this.dbg_raycast_state[1] + "-";
-    ret = ret + this.tact_path;
-    return ret;
   }
 }
 
@@ -442,7 +403,7 @@ function Vec3Scale(a, k) { return [a[0]*k, a[1]*k, a[2]*k]; }
 // https://blackpawn.com/texts/pointinpoly/default.html
 // p: [x, y]
 // tri: [[x0, y0], [x1, y1], [x2, y2]]
-function PointInTriangle(p, tri, tolerance = 0, verbose = false) {
+function PointInTriangle(p, tri, tolerance = 0) {
   
   let a = tri[0], b = tri[1], c = tri[2];
   let v0 = Vec3Sub(c, a);
@@ -457,17 +418,8 @@ function PointInTriangle(p, tri, tolerance = 0, verbose = false) {
   let dot12 = Vec3Dot(v1, v2);
   
   let invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-  // Explosion?
-  if (Math.abs(invDenom) > 1e9) return false;
-  
   let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
   let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-  
-  if (verbose == true) {
-    console.log("u=" + u + ", v=" + v);
-    console.log("invDenom=" + invDenom);
-  }
-  
   return (u >= -tolerance) && (v >= -tolerance) && (u+v<1+tolerance);
 }
 // o = 光线原点, d = 光线方向
@@ -487,14 +439,19 @@ function IntersectRayAndPlane(o, d, p0, p1, p2) {
   let d0 = Vec3Normalize(d);
   let op0 = Vec3Sub(p0, o), dist = Vec3Dot(n, op0);
   let t = dist / Vec3Dot(n, d0);
-  let proj = Vec3Add(o, Vec3Scale(d0, Math.abs(t)));
+  let proj = Vec3Add(o, Vec3Scale(d0, t));
   
   let p3 = Vec3Sub(Vec3Add(p1, p2), p0)
   
   if (PointInTriangle(proj, [p0, p1, p2], 0.04)) {
-    return [proj, t];
+    return proj; 
   } else if (PointInTriangle(proj, [p3, p2, p1], 0.04)) {
-    return [proj, t]; 
+    return proj; 
   }
-  else return [undefined, undefined];
+  else return undefined;
+}
+
+function GetRegionCenter(path) {
+  const p = verts[path];
+  if (p != undefined) { return p[0][0][0]; }
 }

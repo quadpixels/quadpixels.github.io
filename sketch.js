@@ -2,12 +2,14 @@ var g_exit_flag = false, g_exit_flag_prev = false
 const W = 1024, H = 640
 const FONT_SIZE = H / 30;
 var g_fps = undefined;
-var g_flags = [0, 0, 0, 0, 0]
+var g_flags = [0, 0, 0, 0, 0, 0, 0]
 var g_l0idx = 0
 var g_shift_flag = false;
 
 var g_map_graph = undefined;
 var g_mapview = undefined;
+var g_billboard_graph = undefined;
+var g_billboardview = undefined;
 var MapAreaDesc = {
   x: 0, y: 0, w: W, h: H,
   pad: 0, margin_left: 0,
@@ -36,7 +38,8 @@ function GetCurrNationwideGraphTimestamp(nd) {
   if (nd.mouse_hover_x == undefined) return undefined;
   const ts0 = dtToTimestamp(nd.dt0);
   const ts1 = dtToTimestamp(nd.dt1);
-  const c = (nd.mouse_hover_x * 1.0 / (nd.w - nd.margin_left - nd.pad));
+  const c = (nd.mouse_hover_x * 1.0 / (nd.w - nd.margin_left - nd.pad * 2));
+  console.log("c="+c)
   return ts0 + (ts1-ts0) * c;
 }
 function IsInArea(n, mx, my) {
@@ -91,11 +94,18 @@ function setup() {
   createCanvas(W, H);
   g_map_graph = createGraphics(MapAreaDesc.w, MapAreaDesc.h, WEBGL);
   g_mapview = new MapView();
+  g_billboard_graph = createGraphics(MapAreaDesc.w, MapAreaDesc.h, WEBGL);
+  g_billboardview = new BillboardView(g_mapview);
   
   g_nationwide_graph = createGraphics(NationwideGraphDesc.w, NationwideGraphDesc.h);
   
   // 设为当前日期
-  NationwideGraphDesc.dt1 = timestampToDT((new Date()).getTime()/1000);
+  let d = new Date()
+  let offset = d.getTimezoneOffset()
+  let d_utc = d;
+  d_utc.setMinutes(d_utc.getMinutes() + offset)
+  NationwideGraphDesc.dt1 = timestampToDT(d_utc.getTime()/1000);
+  console.log("UTC = local time + " + offset + " min")
   
   InitColorPalette();
   //GetNationwideTimelineData();
@@ -119,10 +129,12 @@ function draw() {
                     g_aggregated_chart_is_stack); // stack?
   }
   
-  if (g_flags[0] != 0 || g_flags[1] != 0 || g_flags[2] != 0) is_map_dirty = true;
+  if (g_flags[0] != 0 || g_flags[1] != 0 || g_flags[2] != 0 ||
+      g_flags[3] != 0 || g_flags[4] != 0) is_map_dirty = true;
   let was_map_dirty = is_map_dirty;
   
   if (is_map_dirty == true) {
+    g_billboardview.Update(delta_secs);
     g_fps.Update(delta_secs);
     is_map_dirty = false;
     // Render to Rendertargets
@@ -130,12 +142,17 @@ function draw() {
     g_mapview.Update(delta_secs);
     g_mapview.Pan(g_flags[0] * delta_secs * 90, g_flags[1] * delta_secs * 90)
     g_mapview.Zoom(Math.exp(Math.log(0.6) * delta_secs * g_flags[2]))
+    g_mapview.RotY(delta_secs * g_flags[3]);
+    g_mapview.RotX(delta_secs * g_flags[4]);
     g_mapview.Render(g_map_graph);
+    
+    g_billboardview.Render(g_billboard_graph);
   }
   
   // Render to canvas
   background(220);
-  image(g_map_graph, MapAreaDesc.x, MapAreaDesc.y, MapAreaDesc.w, MapAreaDesc.h)
+  image(g_map_graph, MapAreaDesc.x, MapAreaDesc.y, MapAreaDesc.w, MapAreaDesc.h);
+  image(g_billboard_graph, MapAreaDesc.x, MapAreaDesc.y, MapAreaDesc.w, MapAreaDesc.h);
   
   textAlign(RIGHT, BOTTOM);
   textSize(FONT_SIZE);
@@ -147,9 +164,6 @@ function draw() {
     textAlign(LEFT, TOP);
     text(g_mapview.GetStatusString(), 0, 0);
   }
-  
-  textAlign(LEFT, BOTTOM);
-  text(g_mapview.GetRaycastDbgInfo(), 0, height);
   
   fill(0);
   
@@ -208,6 +222,10 @@ function keyPressed() {
   else if (keyCode == DOWN_ARROW) { g_flags[1] = -1 }
   else if (key == '[') { g_flags[2] = -1 }
   else if (key == ']') { g_flags[2] = 1 }
+  else if (key == 'l') { g_flags[3] = 1; }
+  else if (key == 'j') { g_flags[3] = -1; }
+  else if (key == 'i') { g_flags[4] = 1; }
+  else if (key == 'k') { g_flags[4] = -1; }
   else if (key == '=') { 
     //g_l0idx = (g_l0idx + 1 + 9 * (g_shift_flag ? 1:0)) %
     //GetL0Keys().length;
@@ -230,8 +248,6 @@ function keyPressed() {
     }
     g_exit_flag = !g_exit_flag
     console.log("ESCAPE pressed");
-  } else if (key == 't') {
-    g_mapview.dbg_trace = true; 
   }
   is_map_dirty = true
 }
@@ -242,6 +258,8 @@ function keyReleased() {
   else if (keyCode == UP_ARROW || keyCode == DOWN_ARROW)
     g_flags[1] = 0
   else if (key == '[' || key == ']') g_flags[2] = 0;
+  else if (key == 'j' || key == 'l') g_flags[3] = 0;
+  else if (key == 'i' || key == 'k') g_flags[4] = 0;
   else if (keyCode == SHIFT) g_shift_flag = false;
   is_map_dirty = true
 }

@@ -173,6 +173,7 @@ function InitDXYToKMLLocationMapping() {
 //
 // aggregate_l0：因为全国数据没有直接提供，所以要在level1的时候自己添加
 function GetDXYTimelineSnapshot(ts) {
+  console.log("GetDXYTimelineSnapshot " + ts)
   var ret = { }
   var nationwide = [0, 0, 0, 0]
   

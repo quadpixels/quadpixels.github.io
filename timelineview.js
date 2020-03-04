@@ -61,9 +61,9 @@ function do_GetDXYTimelineSnapshot(ts, node, name, stack, ret, aggregate_desc) {
         if (ts0 <= ts && ts1 > ts) {
           for (let midx = 0; midx < 4; midx ++) {
             // [ 确认 疑似 治愈 死亡 ]
-            let ret0 = tl[idx][1][midx], ret1 = tl[idx][1][midx];
+            let ret0 = tl[idx][1][midx], ret1 = tl[idx+1][1][midx];
             let w0   = ts1 - ts,      w1   = ts - ts0;
-            let r = (w0 * ret0 + w1 * ret1) / (w0 + w1);
+            let r = Math.floor((w0 * ret0 + w1 * ret1) / (w0 + w1));
             readings.push(r);
           }
           break;
