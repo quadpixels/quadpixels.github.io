@@ -69,6 +69,15 @@ class MapView {
         let extrude = this.ExtrudeFunc(reading);
         let fill_color = GetColor("/" + path);
         
+        // 大中华区同色
+        if (path == "Taiwan" && extrude <= 0) {
+          let reading1 = GetReading("China", "dxy_data")[this.metric_index];
+          if (reading1 > 0) {
+            reading = 1;
+            extrude = this.ExtrudeFunc(1);
+          }
+        }
+        
         this.extrudes[path] = extrude;
         
         for (let ip = 0; ip < polys.length; ip++) {
@@ -452,6 +461,9 @@ function IntersectRayAndPlane(o, d, p0, p1, p2) {
 }
 
 function GetRegionCenter(path) {
-  const p = verts[path];
-  if (p != undefined) { return p[0][0][0]; }
+  if (path in g_locations) { return g_locations[path]; }
+  else {
+    const p = verts[path];
+    if (p != undefined) { return p[0][0][0]; }
+  }
 }

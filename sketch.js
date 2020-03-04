@@ -39,7 +39,6 @@ function GetCurrNationwideGraphTimestamp(nd) {
   const ts0 = dtToTimestamp(nd.dt0);
   const ts1 = dtToTimestamp(nd.dt1);
   const c = (nd.mouse_hover_x * 1.0 / (nd.w - nd.margin_left - nd.pad * 2));
-  console.log("c="+c)
   return ts0 + (ts1-ts0) * c;
 }
 function IsInArea(n, mx, my) {

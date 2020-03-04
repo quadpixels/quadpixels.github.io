@@ -9,6 +9,7 @@ class BillboardView {
     this.tex_w = 160; this.tex_h = 2048;//this.text_size * this.num_lines
     this.texture = createGraphics(this.tex_w, this.tex_h)
     this.texture_lidx = 0; // Texture Line Index
+    this.texture_is_dirty = true;
   }
   
   Update(delta_s) {
@@ -57,7 +58,9 @@ class BillboardView {
     // 清除贴图。
     this.texture_lidx = 0;
     //this.texture.background(0, 0, 0, 0);
-    this.texture.clear();
+    if (this.texture_is_dirty == true) {
+      this.texture.clear();
+    }
     rt.blendMode(ADD);
     let gl = document.getElementById('defaultCanvas0').getContext('webgl');
     
@@ -74,22 +77,29 @@ class BillboardView {
       }
     }
     
+    this.texture_is_dirty = false;
   }
   
   RenderBillboard(rt, text, x, y, z, fill_color) {
     const lidx = this.texture_lidx; // line index
     this.texture_lidx ++;
-    const tx0 = 0, ty0 = lidx * this.text_size;
+    let tx0 = 0, ty0 = lidx * this.text_size;
     // 准备贴图
     this.texture.textSize(this.text_size);
     this.texture.textAlign(LEFT, TOP);
     const tw = this.texture.textWidth(text);
-    this.texture.fill(fill_color)
-    this.texture.noStroke();
-    this.texture.rect(tx0, ty0, tw, this.text_size);
-    this.texture.fill(0)
-    this.texture.text(text, tx0, ty0);
-    const tx1 = tw, ty1 = ty0 + this.text_size;
+    if (this.texture_is_dirty == true) {
+      this.texture.fill(fill_color)
+      this.texture.noStroke();
+      this.texture.rect(tx0, ty0, tw, this.text_size);
+      if (red(fill_color) + green(fill_color) + blue(fill_color) > 128*3) {
+        this.texture.fill(0)
+      } else {
+        this.texture.fill(255);
+      }
+      this.texture.text(text, tx0, ty0+1);
+    }
+    let tx1 = tw, ty1 = ty0 + this.text_size;
     
     const zoom = 1 / this.mapview.zoom;
     const xx = this.mapview.longitude * zoom, yy = this.mapview.latitude * zoom;
@@ -120,8 +130,23 @@ class BillboardView {
     const p3 = Vec3Add(Vec3Add(p0, Vec3Scale(bbx,  w/2)), Vec3Scale(bby,  h/2));
     const p4 = Vec3Add(Vec3Add(p0, Vec3Scale(bbx, -w/2)), Vec3Scale(bby,  h/2));
 
+    
+    
+    rt.beginShape(LINES);
+    rt.vertex(p00[0], p00[1], p00[2]);
+    rt.vertex(p0[0],  p0[1],  p0[2] );
+    rt.vertex(p1[0], p1[1], p1[2])
+    rt.vertex(p2[0], p2[1], p2[2])
+    rt.vertex(p2[0], p2[1], p2[2])
+    rt.vertex(p3[0], p3[1], p3[2])
+    rt.vertex(p3[0], p3[1], p3[2])
+    rt.vertex(p4[0], p4[1], p4[2])
+    rt.vertex(p4[0], p4[1], p4[2])
+    rt.vertex(p1[0], p1[1], p1[2])
+    rt.endShape();
+    
     rt.texture(this.texture);
-    rt.stroke(fill_color);
+    rt.noStroke();
     rt.beginShape();
     rt.vertex(p1[0], p1[1], p1[2], tx0, ty1);
     rt.vertex(p2[0], p2[1], p2[2], tx1, ty1);
@@ -131,19 +156,6 @@ class BillboardView {
     rt.endShape();
     rt.fill(255);
     
-    rt.beginShape(LINES);
-    rt.vertex(p00[0], p00[1], p00[2]);
-    rt.vertex(p0[0],  p0[1],  p0[2] );
-    
-    rt.vertex(p1[0], p1[1], p1[2])
-    rt.vertex(p2[0], p2[1], p2[2])
-    rt.vertex(p2[0], p2[1], p2[2])
-    rt.vertex(p3[0], p3[1], p3[2])
-    rt.vertex(p3[0], p3[1], p3[2])
-    rt.vertex(p4[0], p4[1], p4[2])
-    rt.vertex(p4[0], p4[1], p4[2])
-    rt.vertex(p1[0], p1[1], p1[2])
-    
-    rt.endShape();
+    rt.stroke(fill_color);
   }
 }
