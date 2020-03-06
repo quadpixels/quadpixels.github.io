@@ -464,6 +464,9 @@ function GetRegionCenter(path) {
   if (path in g_locations) { return g_locations[path]; }
   else {
     const p = verts[path];
-    if (p != undefined) { return p[0][0][0]; }
+    if (p != undefined && p[0].length > 0) { // 如果<=0就表示这个形状被剔除了
+      return p[0][0][0]; 
+    }
   }
+  return undefined
 }
