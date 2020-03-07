@@ -192,6 +192,9 @@ function GetDXYTimelineSnapshot(ts) {
   // 把大陆地区的数据补进去
   g_curr_kml_snapshot["China"] = nationwide.slice()
   
+  // 用于染色的最大数
+  let max_count = [0, 0, 0, 0];
+  
   // Extract Path
   let keys = Object.keys(ret);
   for (let i=0; i<keys.length; i++) {
@@ -208,12 +211,15 @@ function GetDXYTimelineSnapshot(ts) {
       }
       for (let j=0; j<4; j++) {
         g_curr_kml_snapshot[key_kml][j] += ret[key_dxy][j];
+        max_count[j] = Math.max(max_count[j], g_curr_kml_snapshot[key_kml][j])
       }
     }
   }
   
   // 重画billboard
   g_billboardview.texture_is_dirty = true;
+  
+  g_curr_kml_snapshot["max_count"] = max_count
   
   return ret;
 }

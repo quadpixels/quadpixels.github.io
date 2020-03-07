@@ -65,6 +65,25 @@ var g_aggregated_chart_palette = undefined;
 var g_aggregated_chart_is_stack = false;
 var g_aggregated_chart_series = [];
 
+const COLOR_KEYS = [
+  "颜色仅用于区分不同地区",
+  "颜色表示人数多少",
+  "颜色表示进入疫情先后的顺序",
+]
+var g_colorkey_select;
+
+const BILLBOARD_KEYS = [
+  "不显示标签",
+  "标签显示人数",
+  "标签显示地名"
+]
+var g_billboard_select;
+
+const LOCS = [
+  "--跳转到某地区--", "北美洲", "南美洲", "欧洲", "非洲", "南亚、西亚", "东亚、东南亚", "大洋洲"
+]
+var g_locs_select
+
 // Utility classes
 class FPS {
   constructor() {
@@ -109,6 +128,36 @@ function setup() {
   InitColorPalette();
   //GetNationwideTimelineData();
   GetWorldTimelineData();
+  
+  // 颜色表示什么
+  g_colorkey_select = createSelect()
+  g_colorkey_select.position(50, height+20)
+  for (let i=0; i<COLOR_KEYS.length; i++) { g_colorkey_select.option(COLOR_KEYS[i]) }
+  g_colorkey_select.selected(COLOR_KEYS[0])
+  g_colorkey_select.changed(RequestRefresh)
+  
+  // 标签表示什么
+  g_billboard_select = createSelect()
+  g_billboard_select.position(270, height+20)
+  for (let i=0; i<BILLBOARD_KEYS.length; i++) { g_billboard_select.option(BILLBOARD_KEYS[i]) }
+  g_billboard_select.selected(BILLBOARD_KEYS[1])
+  g_billboard_select.changed(RequestRefresh);
+  
+  // 跳转到某地区
+  g_locs_select = createSelect()
+  g_locs_select.position(width-150, height+20)
+  for (let i=0; i<LOCS.length; i++) { g_locs_select.option(LOCS[i]); }
+  g_locs_select.selected(LOCS[0]);
+  g_locs_select.changed(function() {
+    g_mapview.SetLocation(g_locs_select.value());
+    g_locs_select.selected(LOCS[0]);
+  })
+  
+  let reset_view = createButton("重置视角")
+  reset_view.position(width - 230, height + 20)
+  reset_view.mousePressed(function() {
+    g_mapview.SetLocation("")  
+  })
 }
 
 var last_secs = 0;
@@ -293,4 +342,9 @@ function mousePressed() {
     } else {
     }
   }
+}
+
+function RequestRefresh() {
+  is_map_dirty = true;
+  g_billboardview.texture_is_dirty = true;
 }

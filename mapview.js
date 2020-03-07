@@ -3,8 +3,8 @@ class MapView {
     this.rot_x = 1;
     this.rot_y = 0;
     
-    this.longitude = 20;
-    this.latitude  = 50;
+    this.longitude = 39.383749999979045;
+    this.latitude  = 66.15634999998292;
     this.zoom      = 0.5;
     
     this.num_verts_line = 0;
@@ -245,6 +245,14 @@ class MapView {
                 this.num_lines_drawn + "，缩放级数：" + this.detail_level
   }
   
+  Dump() {
+    console.log("[Camera state]")
+    console.log("rot_x=" + this.rot_x)
+    console.log("longitude=" + this.longitude)
+    console.log("latitude=" + this.latitude)
+    console.log("zoom=" + this.zoom)
+  }
+  
   Pan(delta_longitude, delta_latitude) {
     this.longitude += delta_longitude; this.latitude += delta_latitude
   }
@@ -388,6 +396,52 @@ class MapView {
     this.do_CheckIntersection(verts, [], 1, ret);
     //console.log("CheckIntersection result: " + ret[0])
     this.tact_path = ret[0];
+  }
+  
+  SetLocation(loc) {
+    if (loc == "北美洲") {
+      this.rot_x     = 0.17568000000028405
+      this.longitude =-105.10360000002038
+      this.latitude  =60.39275000004636
+      this.zoom      =0.18210310279959666
+    } else if (loc == "南美洲") {
+      this.rot_x     = 0.17568000000028405
+      this.longitude =-72.12
+      this.latitude  =-6.718
+      this.zoom      =0.18210310279959666
+    } else if (loc == "欧洲") {
+      this.rot_x=0.5052749999959474
+      this.longitude=14.152699999880838
+      this.latitude=56.63479999984986
+      this.zoom=0.0897129102191059
+    } else if (loc == "非洲") {
+      this.rot_x=0.28134499999410423
+      this.longitude=14.152699999880838
+      this.latitude=14.148499999857336
+      this.zoom=0.1757123768111975
+    } else if (loc == "南亚、西亚") {
+      this.rot_x=0.28134499999410423
+      this.longitude=60.82354999975507
+      this.latitude=31.07839999961641
+      this.zoom=0.09299456508130376
+    } else if (loc == "东亚、东南亚") {
+      this.rot_x=0.28134499999410423
+      this.longitude=119.66239999967001
+      this.latitude=29.515549999310906
+      this.zoom=0.14014216946241548
+    } else if (loc == "大洋洲") {
+      this.rot_x=0.28134499999410423
+      this.longitude=140.1306499997503
+      this.latitude=-12.213850000479738
+      this.zoom=0.12966585899825744
+    } else if (loc == "") {
+      this.rot_x = 1;
+      this.rot_y = 0;
+      this.longitude = 20;
+      this.latitude  = 50;
+      this.zoom      = 0.5;
+    }
+    RequestRefresh();
   }
 }
 

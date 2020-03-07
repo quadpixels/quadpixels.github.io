@@ -64,16 +64,21 @@ class BillboardView {
     rt.blendMode(ADD);
     let gl = document.getElementById('defaultCanvas0').getContext('webgl');
     
-    const keys = Object.keys(g_curr_kml_snapshot);
-    for (let i=0; i<keys.length; i++) {
-      const cnt = g_curr_kml_snapshot[keys[i]]
-      let c = GetRegionCenter(keys[i]);
-      if (c != undefined && cnt[0] > 0) {
-        let fill_color = GetColor("/" + keys[i]);
-        rt.stroke(fill_color);
-        this.RenderBillboard(rt, /*keys[i]*/""+cnt[0], c[0] * zoom, c[1] * zoom,
-          20 + log(cnt[0])/log(2)*3,
-          fill_color);
+    // Render billboard?
+    let should_render_billboard = true;
+    if (g_billboard_select.value() == BILLBOARD_KEYS[0]) {
+    } else {
+      const keys = Object.keys(g_curr_kml_snapshot);
+      for (let i=0; i<keys.length; i++) {
+        const cnt = g_curr_kml_snapshot[keys[i]]
+        let c = GetRegionCenter(keys[i]);
+        if (c != undefined && cnt[0] > 0) {
+          let fill_color = GetColor("/" + keys[i]);
+          rt.stroke(fill_color);
+          this.RenderBillboard(rt, /*keys[i]*/""+cnt[0], c[0] * zoom, c[1] * zoom,
+            20 + log(cnt[0])/log(2)*3,
+            fill_color);
+        }
       }
     }
     

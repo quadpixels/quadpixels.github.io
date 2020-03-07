@@ -74,14 +74,28 @@ function InitColorPalette() {
 }
 
 function GetColor(name) {
-  let pkey = name
-  // 大中华区用同一种色
-  if (pkey == "/Taiwan") { pkey = "/China"; }
-  let ret = g_palette_for_region[pkey];
-  if (ret == undefined) {
-    g_palette_for_region[pkey] = PALETTE[g_palette_serial % PALETTE.length];
-    g_palette_serial ++;
-    ret = g_palette_for_region[pkey];
+  let c = g_colorkey_select.value()
+  if (c == COLOR_KEYS[0]) { // 颜色仅用于表示不同地区
+    let pkey = name
+    // 大中华区用同一种色
+    if (pkey == "/Taiwan") { pkey = "/China"; }
+    let ret = g_palette_for_region[pkey];
+    if (ret == undefined) {
+      g_palette_for_region[pkey] = PALETTE[g_palette_serial % PALETTE.length];
+      g_palette_serial ++;
+      ret = g_palette_for_region[pkey];
+    }
+    return ret;
+  } else if (c == COLOR_KEYS[1]) { // 颜色表示人数多少
+    let cnt       = g_curr_kml_snapshot[name.slice(1)]
+    if (cnt != undefined) {
+      cnt = cnt[0]
+      let max_count = g_curr_kml_snapshot["max_count"][0]
+      let t = Math.log(cnt) / Math.log(max_count)
+      let r = lerp(199, 255, t)
+      let g = lerp(192, 192, t)
+      let b = lerp(192, 192, t)
+      return [r, g, b]
+    } else return [192, 192, 192]
   }
-  return ret;
 }
