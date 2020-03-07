@@ -136,7 +136,9 @@ class BillboardView {
     const p4 = Vec3Add(Vec3Add(p0, Vec3Scale(bbx, -w/2)), Vec3Scale(bby,  h/2));
 
     
-    
+    let fill_color_alpha = fill_color.slice()
+    fill_color_alpha.push(128)
+    rt.stroke(fill_color_alpha)
     rt.beginShape(LINES);
     rt.vertex(p00[0], p00[1], p00[2]);
     rt.vertex(p0[0],  p0[1],  p0[2] );

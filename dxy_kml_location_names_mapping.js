@@ -153,6 +153,7 @@ var g_dxy2kml_paths = {
   "S. Korea": "South Korea",
   "USA"     : "United States of America",
   "U.K."    : "United Kingdom",
+  "UK"    : "United Kingdom",
 }
 
 // 更新 g_dxy2kml_paths
