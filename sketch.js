@@ -58,6 +58,9 @@ var is_map_dirty = true
 // 流程：先获得丁香园格式的快照，再汇总成KML格式的
 var g_curr_kml_snapshot = { };
 
+// 进入疫情的时间
+var g_kml_entry_dates = { };
+
 // 控制时间线显示的
 var g_aggregated_chart_data = [];
 var g_aggregated_chart_midxes = [];

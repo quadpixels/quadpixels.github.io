@@ -97,5 +97,18 @@ function GetColor(name) {
       let b = lerp(192, 192, t)
       return [r, g, b]
     } else return [192, 192, 192]
+  } else if (c == COLOR_KEYS[2]) { // 颜色表示进入疫情早与晚
+    if (name == "/全国") { name = "/China" }
+    const earliest = g_kml_entry_dates["earliest_date"]
+    const latest   = g_kml_entry_dates["latest_date"]
+    const dt = g_kml_entry_dates[name]
+    if (dt != undefined) {
+      let t = (latest - dt) / (latest - earliest)
+      let r = lerp(224, 224, t)
+      let g = lerp(192, 192, t)
+      let b = lerp(192, 224, t)
+      console.log(name + " -- " + t)
+      return [r, g, b]
+    } else return [192, 192, 192]
   }
 }

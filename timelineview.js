@@ -135,7 +135,9 @@ function GetReading(path, kind) {
 
 function GetWorldTimelineData(is_include_chinamainland = false) {
   g_nationwide_graph_dirty = true;
-    
+  
+  g_kml_entry_dates = { }
+  
   g_aggregated_chart_data = []
   const dt0 = NationwideGraphDesc.dt0
   const dt1 = NationwideGraphDesc.dt1
@@ -152,10 +154,27 @@ function GetWorldTimelineData(is_include_chinamainland = false) {
     if (ts == ts0) { g_aggregated_chart_series = aggregate_desc.series; }
     do_GetDXYTimelineSnapshot(ts, g_timeline_world, "", [""],     undefined, aggregate_desc);
     if (is_include_chinamainland) {
-      do_GetDXYTimelineSnapshot(ts, g_timeline,       "全国",["全国"],undefined, aggregate_desc);
+      do_GetDXYTimelineSnapshot(ts, g_timeline,     "全国",["全国"],undefined, aggregate_desc);
     }
-    g_aggregated_chart_data.push([ts].concat(nationwide)); 
+    g_aggregated_chart_data.push([ts].concat(nationwide));
+    
+    for (let i=0; i<aggregate_desc.series.length; i++) {
+      let serie = aggregate_desc.series[i];
+      let x = nationwide[i];
+      if (x > 0) {
+        if (!(serie in g_kml_entry_dates)) {
+          g_kml_entry_dates[serie] = ts
+          if (g_kml_entry_dates["earliest_date"] == undefined) {
+            g_kml_entry_dates["earliest_date"] = ts
+          } else {
+            g_kml_entry_dates["earliest_date"] = Math.min(ts, g_kml_entry_dates["earliest_date"])
+          }
+          g_kml_entry_dates["latest_date"] = ts
+        }
+      }
+    }
   }
+  
   //https://stackoverflow.com/questions/3746725/how-to-create-an-array-containing-1-n
   g_aggregated_chart_midxes = Array.from(Array(g_aggregated_chart_data[0].length - 1).keys())
   g_aggregated_chart_is_stack = true
@@ -176,6 +195,7 @@ function GetNationwideTimelineData() {
       start_path:   "全国",
       started:      false,
       aggregate_mode: "per_metric",
+      series: [],
     }
     do_GetDXYTimelineSnapshot(ts, g_timeline, "全国", ["全国"], undefined, aggregate_desc_dxy);
     g_aggregated_chart_data.push([ts].concat(nationwide)); 
