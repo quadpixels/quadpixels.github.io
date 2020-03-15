@@ -161,6 +161,13 @@ function setup() {
   reset_view.mousePressed(function() {
     g_mapview.SetLocation("")  
   })
+  
+  // 到最近的时间点
+  NationwideGraphDesc.mouse_clicked_x = NationwideGraphDesc.mouse_hover_x =
+    NationwideGraphDesc.w - NationwideGraphDesc.margin_left - NationwideGraphDesc.pad
+  const ts = GetCurrNationwideGraphTimestamp(NationwideGraphDesc)
+  GetDXYTimelineSnapshot(ts)
+  is_map_dirty = true;
 }
 
 var last_secs = 0;
