@@ -1,5 +1,5 @@
 var g_exit_flag = false, g_exit_flag_prev = false
-const W = 1024, H = 640
+const W = 1024, H = 8
 const FONT_SIZE = H / 30;
 var g_fps = undefined;
 var g_flags = [0, 0, 0, 0, 0, 0, 0]
@@ -14,10 +14,14 @@ var MapAreaDesc = {
   x: 0, y: 0, w: W, h: H,
   pad: 0, margin_left: 0,
 }
+const MAP_USE_RT = true
 
 function GetL0Keys() {
   return Object.keys(verts);
 }
+
+// HACK，请见p5.js line 98493
+let g_suppress_textures = false;
 
 // 折线图
 var NationwideGraphDesc = {
@@ -114,6 +118,10 @@ function setup() {
   frameRate(30);
   createCanvas(W, H);
   g_map_graph = createGraphics(MapAreaDesc.w, MapAreaDesc.h, WEBGL);
+  
+  //g_map_graph.pixelDensity(1);
+  
+  
   g_mapview = new MapView();
   g_billboard_graph = createGraphics(MapAreaDesc.w, MapAreaDesc.h, WEBGL);
   g_billboardview = new BillboardView(g_mapview);
@@ -143,7 +151,7 @@ function setup() {
   g_billboard_select = createSelect()
   g_billboard_select.position(270, height+20)
   for (let i=0; i<BILLBOARD_KEYS.length; i++) { g_billboard_select.option(BILLBOARD_KEYS[i]) }
-  g_billboard_select.selected(BILLBOARD_KEYS[1])
+  g_billboard_select.selected(BILLBOARD_KEYS[0])
   g_billboard_select.changed(RequestRefresh);
   
   // 跳转到某地区
@@ -191,26 +199,56 @@ function draw() {
       g_flags[3] != 0 || g_flags[4] != 0) is_map_dirty = true;
   let was_map_dirty = is_map_dirty;
   
+  const should_render_billboard = (g_billboard_select.value() != BILLBOARD_KEYS[0]);
+  
   if (is_map_dirty == true) {
     g_billboardview.Update(delta_secs);
     g_fps.Update(delta_secs);
     is_map_dirty = false;
     // Render to Rendertargets
-    g_map_graph.background(220);
-    g_mapview.Update(delta_secs);
-    g_mapview.Pan(g_flags[0] * delta_secs * 90, g_flags[1] * delta_secs * 90)
-    g_mapview.Zoom(Math.exp(Math.log(0.6) * delta_secs * g_flags[2]))
-    g_mapview.RotY(delta_secs * g_flags[3]);
-    g_mapview.RotX(delta_secs * g_flags[4]);
-    g_mapview.Render(g_map_graph);
     
-    g_billboardview.Render(g_billboard_graph);
+    if (MAP_USE_RT) {
+      g_map_graph.background(220);
+      g_mapview.Update(delta_secs);
+      g_mapview.Pan(g_flags[0] * delta_secs * 90, g_flags[1] * delta_secs * 90)
+      g_mapview.Zoom(Math.exp(Math.log(0.6) * delta_secs * g_flags[2]))
+      g_mapview.RotY(delta_secs * g_flags[3]);
+      g_mapview.RotX(delta_secs * g_flags[4]);
+      g_suppress_textures = true;
+      g_mapview.Render(g_map_graph);
+      g_suppress_textures = false;
+    } else {
+      background(220);
+      g_mapview.Update(delta_secs);
+      g_mapview.Pan(g_flags[0] * delta_secs * 90, g_flags[1] * delta_secs * 90)
+      g_mapview.Zoom(Math.exp(Math.log(0.6) * delta_secs * g_flags[2]))
+      g_mapview.RotY(delta_secs * g_flags[3]);
+      g_mapview.RotX(delta_secs * g_flags[4]);
+      g_suppress_textures = true;
+      g_mapview.Render1(); // to canvas directly
+      g_suppress_textures = false;
+    }
+    
+    if (should_render_billboard)
+      g_billboardview.Render(g_billboard_graph);
   }
   
   // Render to canvas
   background(220);
-  image(g_map_graph, MapAreaDesc.x, MapAreaDesc.y, MapAreaDesc.w, MapAreaDesc.h);
-  image(g_billboard_graph, MapAreaDesc.x, MapAreaDesc.y, MapAreaDesc.w, MapAreaDesc.h);
+  if (MAP_USE_RT) {
+    
+    if (true) {
+      const yy = 0.3 // Copy 30% less data
+      image(g_map_graph, MapAreaDesc.x, MapAreaDesc.y + MapAreaDesc.h * yy,
+                         MapAreaDesc.w, MapAreaDesc.h * (1-yy),
+                         MapAreaDesc.x, MapAreaDesc.y + MapAreaDesc.h * yy,
+                         MapAreaDesc.w, MapAreaDesc.h * (1-yy));
+    }
+  }
+  
+  if (should_render_billboard) {
+    image(g_billboard_graph, MapAreaDesc.x, MapAreaDesc.y, MapAreaDesc.w, MapAreaDesc.h);
+  }
   
   textAlign(RIGHT, BOTTOM);
   textSize(FONT_SIZE);

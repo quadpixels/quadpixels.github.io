@@ -240,6 +240,164 @@ class MapView {
     }
   }
   
+  
+  do_DrawMap1(node, stack, level_cap, skips) {
+    if (stack.length > level_cap) return;
+    
+    var keys = Object.keys(node);
+    for (let i=0; i<keys.length; i++) {
+      var entry = node[keys[i]];
+      var polys = entry[0], children = entry[1];
+      let name  = keys[i];
+      
+      let should_render = true;
+      // stack 不包括当前结点
+      if (Object.keys(children).length < 1 || stack.length == this.detail_level) {
+        should_render = true;
+      } else { should_render = false; }
+      
+      if (should_render) {
+        let path = (stack.concat([name])).join("/");
+        //let extrude = GetReading(path, "dummy");
+        let reading = GetReading(path, "dxy_data")[this.metric_index];
+        let extrude = this.ExtrudeFunc(reading);
+        let fill_color = GetColor("/" + path);
+        
+        // 大中华区同色
+        if (path == "Taiwan" && extrude <= 0) {
+          let reading1 = GetReading("China", "dxy_data")[this.metric_index];
+          if (reading1 > 0) {
+            reading = 1;
+            extrude = this.ExtrudeFunc(1);
+          }
+        }
+        
+        this.extrudes[path] = extrude;
+        
+        for (let ip = 0; ip < polys.length; ip++) {
+          let outline = polys[ip][0]
+          
+          var is_highlighted = false;
+          var is_outlined = false;
+          
+          //if (level == 0 && i == g_l0idx) { 
+          //  is_highlighted = true; 
+          //  is_outlined = true;
+          //}
+          //if (level >= 1) { is_outlined = true; } 31 fps
+          // is_outlined = true; // 5 fps
+          if (path == this.tact_path) { is_outlined = true; }
+          
+          noFill();
+          if (is_outlined) {
+            if (stack.length == 0) { stroke(0); }
+            else { stroke(128); }
+            
+            beginShape(LINES);
+            for (let iip = 0; iip < outline.length; iip += 2) {
+              let iip1 = (iip + 2) % outline.length;
+              let dx0 =   (outline[iip]   - this.longitude) / this.zoom;
+              let dy0 = - (outline[iip+1] - this.latitude ) / this.zoom;
+              let dx1 =   (outline[iip1]  - this.longitude) / this.zoom;
+              let dy1 = - (outline[iip1+1]- this.latitude ) / this.zoom;
+              let dz = extrude / this.zoom;
+              vertex(dx0, dy0, dz); vertex(dx1, dy1, dz);
+              //rt.vertex(dx0, dy0, dz); rt.vertex(dx0, dy0, 0);
+              //rt.vertex(dx1, dy1, dz); rt.vertex(dx1, dy1, 0);
+              vertex(dx0, dy0, 0 ); vertex(dx1, dy1, 0);
+            }
+            this.num_lines_drawn += (outline.length);
+            endShape();
+          }
+          
+          let poly = polys[ip][1];
+          noStroke();
+          
+          const FILL_MODE = 0; // 设为0：46 fps；设为1：21 fps
+          
+          if (is_highlighted) {
+            //console.log("Highlighted: " + path)
+            fill(0, 0, 255); 
+          } else { fill(fill_color); }
+          
+          if (FILL_MODE == 0) {
+            if (reading <= 0 && (is_highlighted == false)) {
+              fill(192);
+            }
+            beginShape(TRIANGLES);
+            let skip = skips[stack.length];
+            for (let iip = 0; iip < poly.length; iip += 2 * skip) {
+              // 对于WebGL的Graphics来说，(0, 0)在画布正中央，所以不像2D的那样需要平移
+              let dx =   (poly[iip]  -this.longitude) / this.zoom; // + rt.width/2
+              let dy = - (poly[iip+1]- this.latitude) / this.zoom; // + rt.height/2)
+              let dz =   extrude / this.zoom
+              vertex(dx, dy, dz);
+            }
+            this.num_triangles_drawn += (poly.length / 3);
+            endShape();
+            
+            fill(fill_color);
+            if (reading > 0) {
+              
+              //rt.fill(fill_color[0]/2, fill_color[1]/2, fill_color[2]/2); // 变暗一点
+              fill(lerp(fill_color[0], 0, 0.1),
+                   lerp(fill_color[1], 0, 0.1),
+                   lerp(fill_color[2], 0, 0.1)); // 变浅一点
+              
+              beginShape(TRIANGLES);
+              for (let iip = 0; iip < outline.length; iip += 2) {
+                let iip1 = (iip + 2) % outline.length;
+                let dx0 =   (outline[iip]   - this.longitude) / this.zoom;
+                let dy0 = - (outline[iip+1] - this.latitude ) / this.zoom;
+                let dx1 =   (outline[iip1]  - this.longitude) / this.zoom;
+                let dy1 = - (outline[iip1+1]- this.latitude ) / this.zoom;
+                let dz  = extrude / this.zoom;
+                vertex(dx0, dy0, 0);
+                vertex(dx1, dy1, 0);
+                vertex(dx1, dy1, dz);
+                
+                vertex(dx1, dy1, dz);
+                vertex(dx0, dy0, dz);
+                vertex(dx0, dy0, 0);
+              }
+              this.num_triangles_drawn += (outline.length * 2);
+              endShape();
+            }
+            
+          } else {
+            beginShape();
+            let skip = skips[stack.length];
+            for (let iip = 0; iip < outline.length; iip += 2 * skip) {
+              let dx =   (poly[iip]   - this.longitude) / this.zoom; // + rt.width/2
+              let dy = - (poly[iip+1]- this.latitude )  / this.zoom; // + rt.height/2)
+              vertex(dx, dy);
+            }
+            this.num_poly_drawn += 1;
+            endShape();
+          }
+          fill(0);
+        }
+      }
+      
+      this.do_DrawMap1(children, stack.concat([name]), level_cap, skips);
+    }
+  }
+  
+  
+  Render1() {
+    this.extrudes = { };
+    this.num_lines_drawn = 0;
+    this.num_triangles_drawn = 0;
+    
+    background(220);
+    camera();
+    rotateX(this.rot_x);
+    rotateY(this.rot_y);
+    this.do_DrawMap1(verts, 
+      [], 1,
+      [1, 1, 1, 1]); // Skip
+  }
+  
   GetStatusString() {
     return "面数：" + this.num_triangles_drawn + "，线段数：" +
                 this.num_lines_drawn + "，缩放级数：" + this.detail_level
