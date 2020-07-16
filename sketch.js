@@ -1,5 +1,5 @@
 var g_exit_flag = false, g_exit_flag_prev = false
-const W = 1024, H = 8
+const W = 1024, H = 800
 const FONT_SIZE = H / 30;
 var g_fps = undefined;
 var g_flags = [0, 0, 0, 0, 0, 0, 0]
