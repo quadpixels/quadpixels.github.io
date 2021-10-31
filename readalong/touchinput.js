@@ -15,13 +15,23 @@ function TouchOrMouseStarted(event) {
     g_pointer_y = touches[0].y;
     g_touch0_identifier = event.changedTouches[0].identifier;
   
-    UpdateHover();
-    
-  
     // Code dupe, not g00d !
+    const ms = millis();
     g_viewport_drag_y_last = 0; g_viewport_drag_x_last = 0;
     g_viewport_drag_y = 0; g_viewport_drag_x = 0;
-    g_viewport_drag_y_ms = g_viewport_drag_x_ms = millis();
+    g_viewport_drag_y_ms = g_viewport_drag_x_ms = ms;
+
+
+    if (ms - g_prev_touch_millis > DEBOUNCE_THRESH) {
+      const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
+      //g_pathfinder_viz.result = "TouchStarted " + mx + " " + my;
+      g_buttons.forEach((b) => { // TODO: 为什么需要在这里再加一下
+        b.Hover(mx, my);
+        if (b.is_hovered) {
+          b.OnPressed();
+        }
+      })
+    }
 
     if (g_hovered_button == undefined) {
       g_aligner.StartDrag(g_pointer_y / g_scale);

@@ -1,5 +1,23 @@
 // Note: must bake the RingBuffer into the MyProcessor class perhaps due to how modules work.
 class MyProcessor extends AudioWorkletProcessor {
+  static get parameterDescriptors() {
+    return [
+      {
+        name: 'sourceSampleRate',
+        defaultValue: 44100,
+        minValue: 1,
+        maxValue: 192000
+      }
+    ]
+  }
+  SetSourceSampleRate(sr) {
+    // 坑：在手机上是48KHz，但是PC上是44100Hz
+    this.original_sample_rate = sr;
+    this.output_sample_rate   = 8000;  // 8kHz output
+
+    this.orig_step_size = 160;
+    this.out_step_size = sr/100;
+  }
   constructor() {
     super();
     this.soundDataCallback = undefined;
@@ -13,11 +31,7 @@ class MyProcessor extends AudioWorkletProcessor {
     this.tot_entries = 0
     // End ring buffer
 
-    this.original_sample_rate = 44100; // assume 44.1 kHz input
-    this.output_sample_rate   = 8000;  // 8kHz output
-
-    this.orig_step_size = 160;
-    this.out_step_size = 441;
+    this.SetSourceSampleRate(44100);
 
     this.orig_step = 0;
     this.out_step  = 0;
@@ -64,6 +78,16 @@ class MyProcessor extends AudioWorkletProcessor {
   }
 
   process (inputs, outputs, parameters) {
+    
+    if (parameters['sourceSampleRate']) {
+      this.SetSourceSampleRate(parameters['sourceSampleRate'][0]);
+    }
+
+    if (this.tot_entries == 0) {
+      console.log("Parameters:")
+      console.log(parameters)
+    }  
+    
     const input = inputs[0][0]
     if (input == undefined) return false;
 

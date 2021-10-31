@@ -3,9 +3,12 @@ class Aligner {
   constructor() {
     this.w = 478; this.h = 480;
     this.Reset();
+    this.text_size = 28;
   }
   
-  LoadData(data) {
+  LoadData(data, title, text_size) {
+    this.text_size = text_size;
+    this.title = title;
     this.data = data.slice();
     this.line_idx = 0; // 第几行
     
@@ -46,13 +49,18 @@ class Aligner {
   
   Render() {
     push();
-    stroke(COLOR0);
-    //rect(g_readalong_x, g_readalong_y, this.w, this.h);
-
     noStroke();
+    fill(COLOR0);
+    //rect(g_readalong_x, g_readalong_y, this.w, this.h);
+    textAlign(RIGHT, TOP);
+    textSize(20);
+    text("第" + (1+g_data_idx) + "/" + DATA.length + "篇\n" + g_aligner.title,
+      480, g_readalong_y);
+
+
     fill(0);
     
-    const TEXT_SIZE = 24;
+    const TEXT_SIZE = this.text_size;
     const COLOR1 = '#33f', COLOR2 = '#000';
     textSize(TEXT_SIZE);
     textFont('KaiTi');
@@ -104,7 +112,7 @@ class Aligner {
 
         c0 = color(128, 128, 128, alpha), c = c0;
         if (done) {
-          c0 = color(97, 100, 159, alpha);
+          c0 = color(252, 183, 10, alpha);
         }
         if (!done && highlighted > 0) {
           c = lerpColor(c0, color(192, 192, 192, alpha), highlighted);
@@ -369,7 +377,10 @@ function SetupReadAlong() {
 }
 
 let g_data_idx = 0;
-function LoadDataset(idx) { g_aligner.LoadData(DATA[idx]); }
+function LoadDataset(idx) { 
+  g_aligner.LoadData(DATA[idx], TITLES[idx], FONT_SIZES[idx]); 
+  g_aligner.Reset();
+}
 function LoadPrevDataset() {
   g_data_idx --; if (g_data_idx < 0) { g_data_idx = 0; }
   LoadDataset(g_data_idx); 
@@ -381,8 +392,8 @@ function LoadNextDataset() {
 
 let g_message = "";
 
-let g_readalong_x = 0, g_readalong_y = 280;
-let g_readalong_w = 640 - 112, g_readalong_h = 480 - g_readalong_y;
+let g_readalong_x = 4, g_readalong_y = 280;
+let g_readalong_w = 472, g_readalong_h = 480 - g_readalong_y;
 function RenderReadAlong(deltaTime) {
   // Fade lights
   let victims = [];
@@ -422,7 +433,7 @@ function ReadAlongKeyPressed(key, keyCode) {
   else if (keyCode == RIGHT_ARROW) { g_aligner.Step(1); }
   else if (key == '[') { LoadPrevDataset(); }
   else if (key == ']') { LoadNextDataset(); }
-  else if (key == 'r') { g_aligner.Reset(); }
+  else if (key == 'R') { g_aligner.Reset(); }
 }
 
 // 测试拼音分出隔是否分得对

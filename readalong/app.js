@@ -1,8 +1,15 @@
 var url  = require("url"),
     fs   = require("fs"),
     http = require("http"),
+    https= require("https"),
     path = require("path");
-http.createServer(function (req, res) {
+
+const options = {
+    key: fs.readFileSync('key.pem'),
+    cert:fs.readFileSync('cert.pem'),
+};
+
+https.createServer(options, function (req, res) {
     var pathname=__dirname+url.parse(req.url).pathname;
     if (path.extname(pathname)=="") {
         pathname+="/";

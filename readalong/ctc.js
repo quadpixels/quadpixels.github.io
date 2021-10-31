@@ -95,7 +95,7 @@ function Decode(probs, beam_size, blank) {
       temp.push(probs[t][s]);
     }
     temp.sort();
-    const thresh = temp[Math.max(20, parseInt(temp.length * 0.1))];
+    const thresh = temp[Math.max(10, parseInt(temp.length * 0.1))];
 
     for (let s=0; s<S; s++) {
       const p = probs[t][s];

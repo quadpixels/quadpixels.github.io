@@ -8,7 +8,9 @@ function SetupMicrophoneInput(bufferSize) {
   }
 
   // Q: Cannot change sample rate in Firefox
-  let context = new AudioContext();
+  let context = new AudioContext({ sampleRate:44100 });
+  g_audio_context = context;
+  g_pathfinder_viz.result = g_audio_context.sampleRate + " Hz"
 
   var errorCallback = function errorCallback(err) {
     g_pathfinder_viz.result = err
@@ -27,6 +29,7 @@ function SetupMicrophoneInput(bufferSize) {
       var source = context.createMediaStreamSource(window.mediaStream);
       let m = await context.audioWorklet.addModule('myprocessor.js');
       let processor = await CreateMyProcessor(context);
+      g_my_processor = processor;
       source.connect(processor);
     };
 

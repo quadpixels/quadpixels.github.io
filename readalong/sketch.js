@@ -4,6 +4,7 @@
 const COLOR0 = "rgba(167,83,90,1)"; // 满江红
 const COLOR_FFTBARS = "rgba(238,162,164,1)" // 牡丹粉红
 
+var g_audio_context;
 var normalized = [];
 var amplitudeSpectrum;
 var g_buffer = [];
@@ -414,8 +415,8 @@ class Button {
           c = color(56, 32, 32); // 高粱红
           f = color(192, 44, 56, 192);
         } else {
-          //c = color(56, 32, 32); // 莓红
-          //f = color(190, 90, 101, 192);
+          c = color(56, 32, 32); // 莓红
+          f = color(255, 255, 255, 192);
         }
       }
     }
@@ -468,7 +469,6 @@ class PathfinderViz {
 
     this.py2idx = {};
 
-    this.result = "x";
     this.predict_time = 0;
     this.decode_time = 0;
   }
@@ -607,7 +607,7 @@ async function setup() {
   });
 
   createCanvas(640, 640);
-  frameRate(60);
+  frameRate(30);
 
   graph_diff = createGraphics(512, 512);
   g_loudness_vis = new LoudnessVis();
@@ -622,10 +622,11 @@ async function setup() {
 
   // REC button
   g_btn_rec = new Button("REC");
-  g_btn_rec.w = 120;
+  g_btn_rec.w = 220;
   g_btn_rec.h = 100;
   g_btn_rec.pos.x = W0/2 - g_btn_rec.w/2;
   g_btn_rec.pos.y = H0 - g_btn_rec.h - 12;
+  g_btn_rec.is_enabled = false;
   g_btn_rec.clicked = function() {
     g_recorderviz.StartRecording();
   }
@@ -643,12 +644,14 @@ async function setup() {
   g_btn_mic.clicked = function() {
     SetupMicrophoneInput(512);
     g_btn_mic.is_enabled = false; g_btn_file.is_enabled = false;
+    g_btn_rec.is_enabled = true;
   }
   g_btn_file.pos.x = 80;
   g_btn_file.pos.y = 16;
   g_btn_file.clicked = function() {
     g_audio_file_input.click();
     g_btn_mic.is_enabled = false; g_btn_file.is_enabled = false;
+    g_btn_rec.is_enabled = true;
   }
   g_buttons.push(g_btn_mic);
   g_buttons.push(g_btn_file);
@@ -717,6 +720,36 @@ async function setup() {
   }
   g_buttons.push(g_btn_demo_data);
 
+  let btn_next = new Button(">");
+  btn_next.pos.x = 440;
+  btn_next.w = 34;
+  btn_next.h = 100;
+  btn_next.pos.y = 500;
+  btn_next.clicked = function() {
+    LoadNextDataset();
+  }
+  g_buttons.push(btn_next);
+
+  let btn_prev = new Button("<");
+  btn_prev.pos.x = 440;
+  btn_prev.w = 34;
+  btn_prev.h = 100;
+  btn_prev.pos.y = 390;
+  btn_prev.clicked = function() {
+    LoadPrevDataset();
+  }
+  g_buttons.push(btn_prev);
+
+  let btn_reset = new Button("R");
+  btn_reset.pos.x = 440;
+  btn_reset.pos.y = 610;
+  btn_reset.w = 34;
+  btn_reset.h = 50;
+  btn_reset.clicked = function() {
+    g_aligner.Reset();
+  }
+  g_buttons.push(btn_reset);
+
   SetupReadAlong();
 }
 
@@ -755,7 +788,12 @@ function draw() {
     g_pathfinder_viz.Render();
   }
 
-  const mx = mouseX / g_scale, my = mouseY / g_scale;
+  const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
+  noFill();
+  stroke(32);
+  const l = 10 / g_scale;
+  line(mx - l, my, mx + l, my);
+  line(mx, my - l, mx, my + l);
 
   // 放在最底层
   RenderReadAlong(delta_ms);
@@ -776,6 +814,9 @@ function draw() {
     g_aligner.is_hovered = false;
   }
 
+  // 触摸单独在这里另外处理
+
+
   g_buttons.forEach((b) => {
     b.Render();
   })
@@ -785,8 +826,8 @@ function draw() {
   push();
   noStroke();
   fill(192);
-  textAlign(RIGHT, TOP);
-  text(parseInt(width) + "x" + parseInt(height) + "\n" + "x" + g_scale.toFixed(2), width-4, 4);
+  textAlign(LEFT, TOP);
+  text(parseInt(width) + "x" + parseInt(height) + "x" + g_scale.toFixed(2) + " " + windowWidth + "x" + windowHeight, 1, 1);
 
   pop();  // end scale
 
@@ -875,7 +916,14 @@ function touchStarted(event) {
 
 function mousePressed(event) {
   TouchOrMouseStarted(event);
-  g_buttons.forEach((b) => {
+
+  // TODO：为什么在手机上按一下既会触发touchevent又会触发mouseevent
+  if (millis() < g_prev_touch_millis + DEBOUNCE_THRESH) return;
+
+
+  const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
+  g_buttons.forEach((b) => { // TODO: 为什么需要在这里再加一下
+    b.Hover(mx, my);
     if (b.is_hovered) {
       b.OnPressed();
     }
@@ -884,6 +932,9 @@ function mousePressed(event) {
 
 function touchEnded(event) {
   TouchOrMouseEnded(event);
+  g_buttons.forEach((b) => {
+    b.OnReleased();
+  });
 }
 function mouseReleased(event) {
   TouchOrMouseEnded(event);

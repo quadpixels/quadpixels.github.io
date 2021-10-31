@@ -1,5 +1,17 @@
 const DATA = [
   [
+    [ "春眠不觉晓", "chun mian bu jue xiao" ],
+    [ "处处闻啼鸟", "chu chu wen ti niao" ],
+    [ "夜来风雨声", "ye lai feng yu sheng" ],
+    [ "花落知多少", "hua luo zhi duo shao" ] ,
+  ],
+  [
+    [ "爆竹声中一岁除", "bao zhu sheng zhong yi sui chu" ],
+    [ "春风送暖入屠苏", "chun feng song nuan ru tu su" ],
+    [ "千门万户曈曈日", "qian men wan hu tong tong ri" ],
+    [ "总把新桃换旧符", "zong ba xin tao huan jiu fu" ],
+  ],
+  [
     [ "云对雨，雪对风，晚照对晴空。", "yun dui yu xue dui feng wan zhao dui qing kong" ],
     [ "来鸿对去雁，宿鸟对鸣虫。", "lai hong dui qu yan su niao dui ming chong" ],
     [ "三尺剑，六钧弓。岭北对江东。", "san chi jian liu jun gong ling bei dui jiang dong" ],
@@ -47,7 +59,7 @@ const DATA = [
   ],
   [
     [ "楼对阁，户对窗。巨海对长江。", "lou dui ge hu dui chuang ju hai dui chang jiang" ],
-    [ "蓉裳对蕙帐，玉斝对银釭。  （斝：jiǎ）", "rong chang dui hui zhang yu jia dui yin gang" ],
+    [ "蓉裳对蕙帐，玉斝对银釭。", "rong chang dui hui zhang yu jia dui yin gang" ],
     [ "青布幔，碧油幢。宝剑对金缸。", "qing bu man bi you zhuang bao jian dui jin gang" ],
     [ "忠心安社稷，利口覆家邦。", "zhong xin an she ji li kou fu jia bang" ],
     [ "世祖中兴延马武，桀王失道杀龙逄。", "shi zu zhong xing yan ma wu jie wang shi dao sha long tang" ],
@@ -160,4 +172,21 @@ const DATA = [
     [ "嘉遁幽人，适志竹篱茅舍；", "jia dun you ren shi zhi zhu li mao she" ],
     [ "胜游公子，玩情柳陌花衢。", "sheng you gong zi wan qing liu mo hua qu" ]
   ],
+]
+
+const TITLES = [
+  "春晓\n唐 孟浩然",
+  "元日\n宋 王安石",
+  "声律启蒙 卷上 一东\n清 车万育",
+  "声律启蒙 卷上 二冬\n清 车万育",
+  "声律启蒙 卷上 三江\n清 车万育",
+  "声律启蒙 卷上 四支\n清 车万育",
+  "声律启蒙 卷上 五微\n清 车万育",
+  "声律启蒙 卷上 六鱼\n清 车万育",
+  "声律启蒙 卷上 七虞\n清 车万育",
+]
+
+const FONT_SIZES = [
+  36, 36,
+  24,24,24,24,24,24,24,
 ]

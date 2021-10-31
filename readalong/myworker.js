@@ -59,11 +59,12 @@ onmessage = async function(event) {
     temp0array = []; // for ctc
     const T = temp0.shape[1];
     const S = temp0.shape[2];
+    let src = temp0.slice([0, 0, 0], [1, T, S]).dataSync();
     for (let t=0; t<T; t++) {
       let line = [];
-      let src = temp0.slice([0, t, 0], [1, 1, S]).dataSync();
+      let idx0 = S * t;
       for (let s=0; s<S; s++) {
-        line.push(src[s]);
+        line.push(src[s + idx0]);
       }
       temp0array.push(line);
     }
