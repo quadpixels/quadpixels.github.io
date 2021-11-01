@@ -8,7 +8,7 @@ let g_drag_start_node_pos = [-999, -999];
 
 // Firefox的鼠标不会产生Touch事件
 function TouchOrMouseStarted(event) {
-  if (event instanceof TouchEvent && g_touch_state == undefined &&
+  if (typeof(TouchEvent)!="undefined" && event instanceof TouchEvent && g_touch_state == undefined &&
       touches.length == 1) { 
     g_touch_state = "touch";
     g_pointer_x = touches[0].x;
@@ -58,7 +58,7 @@ function TouchOrMouseEnded(event) {
   const x0 = g_drag_start_mouse_pos[0],
         x1 = g_drag_start_mouse_pos[1];
   
-  if (event instanceof TouchEvent) {
+  if ((typeof(TouchEvent) != "undefined") && event instanceof TouchEvent) {
     if (g_touch_state == "touch") {
       for (let t of event.changedTouches) {
         if (t.identifier == g_touch0_identifier) {

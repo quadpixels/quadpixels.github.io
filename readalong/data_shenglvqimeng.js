@@ -73,7 +73,7 @@ const DATA = [
     [ "夏日池塘，出没浴波鸥对对；", "xia ri chi tang chu mo yu bo ou dui dui" ],
     [ "春风帘幕，往来营垒燕双双。", "chun feng lian mu wang lai ying lei yan shuanug shuang" ],
     [ "铢对两，只对双。华岳对湘江。", "zhu dui liang zhi dui shuang hua yue dui xiang jiang" ],
-    [ "朝车对禁鼓，宿火对塞缸。", "chao che dui jin gu su huo dui han gang" ],
+    [ "朝车对禁鼓，宿火对寒缸。", "chao che dui jin gu su huo dui han gang" ],
     [ "青琐闼，碧纱窗。汉社对周邦。", "qing suo ta bi sha chuang han she dui zhou bang" ],
     [ "笙箫鸣细细，钟鼓响摐摐。", "sheng xiao ming xi xi zhong gu xiang chuang chuang" ],
     [ "主簿栖鸾名有览，治中展骥姓惟庞。", "zhu bu qi luan ming you lan zhi zhong zhan ji xing wei pang" ],
@@ -172,6 +172,29 @@ const DATA = [
     [ "嘉遁幽人，适志竹篱茅舍；", "jia dun you ren shi zhi zhu li mao she" ],
     [ "胜游公子，玩情柳陌花衢。", "sheng you gong zi wan qing liu mo hua qu" ]
   ],
+  [
+    [ "岩对岫，涧对溪，远岸对危堤。", "yan dui xiu jian dui xi yuan an dui wei di" ],
+    [ "鹤长对凫短，水雁对山鸡。", "he chang dui fu duan shui yan dui shan ji" ],
+    [ "星拱北，月流西，汉露对汤霓。", "xing gong bei yue liu xi han lu dui tang ni" ],
+    [ "桃林牛已放，虞坂马长嘶。", "tao lin niu yi fang yu ban fa chang si" ],
+    [ "叔侄去官闻广受，弟兄让国有夷齐。", "shu zhi qu guan wen guang shou di xiong rang guo you yi qi" ],
+    [ "三月春浓，芍药丛中蝴蝶舞；", "san yue chun nong shao yao cong zhong hu die wu" ],
+    [ "五更天晓，海棠枝上子规啼。", "wu geng tian xiao hai tang zhi shang zi gui ti" ],
+    [ "云对雨，水对泥，白璧对玄圭。", "yun dui yu shui dui ni bai bi dui xuan gui" ],
+    [ "献瓜对投李，禁鼓对征鼙。", "xian gua dui tou li jin gu dui zheng pi" ],
+    [ "徐稚榻，鲁班梯，凤翥对鸾栖，", "xu zhi ta lu ban ti feng zhu dui luan qi" ],
+    [ "有官清似水，无客醉如泥。", "you guan qing si shui wu ke zui ru ni" ],
+    [ "截发惟闻陶侃母，断机只有乐羊妻。", "jie fa wei wen tao kan mu duan ji zhi you yue yang qi" ],
+    [ "秋望佳人，目送楼头千里雁；", "qiu wang jia ren mu song lou tou qian li yan" ],
+    [ "早行远客，梦惊枕上五更鸡。", "zao xing yuan ke meng jing zhen shang wu geng ji" ],
+    [ "熊对虎，象对犀，霹雳对虹霓。", "xiong dui hu xiang dui xi pi li dui hong ni" ],
+    [ "杜鹃对孔雀，桂岭对梅溪。", "du juan dui kong que gui ling dui mei xi" ],
+    [ "萧史凤，宋宗鸡，远近对高低。", "xiao shi feng song zong ji yuan jin dui gao di" ],
+    [ "水寒鱼不跃，林茂鸟频栖。", "shui han yu bu yue lin mao niao pin qi" ],
+    [ "杨柳和烟彭泽县，桃花流水武陵溪。", "yang liu he yan peng ze xian tao hua liu shui wu ling xi" ],
+    [ "公子追欢，闲骤玉骢游绮陌；", "gong zi zhui huan xian zhou yu cong you qi mo" ],
+    [ "佳人倦绣，闷欹珊枕掩香闺。", "jia ren juan xiu men qi shan zhen yan xiang gui" ],
+  ]
 ]
 
 const TITLES = [
@@ -184,9 +207,10 @@ const TITLES = [
   "声律启蒙 卷上 五微\n清 车万育",
   "声律启蒙 卷上 六鱼\n清 车万育",
   "声律启蒙 卷上 七虞\n清 车万育",
+  "声律启蒙 卷上 八齐\n清 车万育",
 ]
 
 const FONT_SIZES = [
   36, 36,
-  24,24,24,24,24,24,24,
+  24,24,24,24,24,24,24,24
 ]
