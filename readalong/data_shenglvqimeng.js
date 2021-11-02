@@ -12,6 +12,12 @@ const DATA = [
     [ "总把新桃换旧符", "zong ba xin tao huan jiu fu" ],
   ],
   [
+    [ "煮豆燃豆萁", "zhu dou ran dou qi" ],
+    [ "豆在釡中泣", "dou zai fu zhong qi" ],
+    [ "本是同根生", "ben shi tong gen sheng" ],
+    [ "相煎何太急", "xiang jian he tai ji" ] ,
+  ],
+  [
     [ "云对雨，雪对风，晚照对晴空。", "yun dui yu xue dui feng wan zhao dui qing kong" ],
     [ "来鸿对去雁，宿鸟对鸣虫。", "lai hong dui qu yan su niao dui ming chong" ],
     [ "三尺剑，六钧弓。岭北对江东。", "san chi jian liu jun gong ling bei dui jiang dong" ],
@@ -200,6 +206,7 @@ const DATA = [
 const TITLES = [
   "春晓\n唐 孟浩然",
   "元日\n宋 王安石",
+  "七步诗\n三国 曹植",
   "声律启蒙 卷上 一东\n清 车万育",
   "声律启蒙 卷上 二冬\n清 车万育",
   "声律启蒙 卷上 三江\n清 车万育",
@@ -211,6 +218,6 @@ const TITLES = [
 ]
 
 const FONT_SIZES = [
-  36, 36,
+  36, 36, 36,
   24,24,24,24,24,24,24,24
 ]
