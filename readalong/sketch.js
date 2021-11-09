@@ -720,11 +720,31 @@ async function setup() {
   }
   g_buttons.push(g_btn_demo_data);
 
+  let btn_prev5 = new Button("-5");
+  btn_prev5.pos.x = 440;
+  btn_prev5.w = 34;
+  btn_prev5.h = 50;
+  btn_prev5.pos.y = 400;
+  btn_prev5.clicked = function() {
+    ModifyDataIdx(-5);
+  }
+  g_buttons.push(btn_prev5);
+
+  let btn_next5 = new Button("+5");
+  btn_next5.pos.x = 440;
+  btn_next5.w = 34;
+  btn_next5.h = 50;
+  btn_next5.pos.y = 640;
+  btn_next5.clicked = function() {
+    ModifyDataIdx(5);
+  }
+  g_buttons.push(btn_next5);
+
   let btn_next = new Button(">");
   btn_next.pos.x = 440;
   btn_next.w = 34;
-  btn_next.h = 100;
-  btn_next.pos.y = 500;
+  btn_next.h = 80;
+  btn_next.pos.y = 550;
   btn_next.clicked = function() {
     LoadNextDataset();
   }
@@ -733,8 +753,8 @@ async function setup() {
   let btn_prev = new Button("<");
   btn_prev.pos.x = 440;
   btn_prev.w = 34;
-  btn_prev.h = 100;
-  btn_prev.pos.y = 390;
+  btn_prev.h = 80;
+  btn_prev.pos.y = 460;
   btn_prev.clicked = function() {
     LoadPrevDataset();
   }
@@ -742,9 +762,9 @@ async function setup() {
 
   let btn_reset = new Button("R");
   btn_reset.pos.x = 440;
-  btn_reset.pos.y = 610;
+  btn_reset.pos.y = 240;
   btn_reset.w = 34;
-  btn_reset.h = 50;
+  btn_reset.h = 35;
   btn_reset.clicked = function() {
     g_aligner.Reset();
   }

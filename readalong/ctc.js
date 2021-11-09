@@ -17,6 +17,7 @@ function ArrayEqual(a, b) {
 function Logsumexp(args) {
   let maxarg = args[0];
   let is_all_neginf = true;
+
   args.forEach((arg) => {
     if (arg > maxarg) {
       maxarg = arg;
@@ -41,30 +42,100 @@ function Logsumexp(args) {
   return maxarg + lsp;
 }
 
+
+function MyHash(key) {
+  let ret = 0;
+  for (let i=0; i<key.length; i++) {
+    const k = key[i];
+    for (let j=0; j<k.length; j++) {
+      ret = (ret * 23333 + k.charCodeAt(j)) % 1000000007;
+    }
+  }
+  return ret;
+}
+
+// 似乎有问题 :(
+const USE_HASH = false;
+
 class Beam {
   constructor() {
     this.entries = [];
+    this.hash2idx = {};
     this.key2idx = {};
   }
+  KeyEq(key1, key2) {
+    if (key1.length == key2.length) {
+      for (let i=0; i<key1.length; i++) {
+        if (key1[i] != key2[i]) return false;
+      }
+      return true;
+    } else {
+      return false;
+    }
+  }
   AddEntry(key, value) {
-    this.entries.push([key, value]);
-    this.key2idx[key.toString()] = this.entries.length-1;
+    if (!USE_HASH) {
+      this.entries.push([key, value]);
+      this.key2idx[key.toString()] = this.entries.length-1;
+    } else {
+      this.entries.push([key, value]);
+      const h = MyHash(key);
+      const idx = this.entries.length - 1;
+      if (!(h in this.hash2idx)) {
+        this.hash2idx[h] = [[key.slice(), idx]];
+      } else {
+        this.hash2idx[h].push([key.slice(), idx]);
+      }
+    }
   }
   Get(prefix) {
-    const k = prefix.toString();
-    let idx = this.key2idx[k];
-    if (idx != undefined) {
-      return this.entries[idx][1];
+    if (!USE_HASH) {
+      const k = prefix.toString();
+      let idx = this.key2idx[k];
+      if (idx != undefined) {
+        return this.entries[idx][1];
+      }
+      else return [NEG_INF, NEG_INF];
+    } else {
+      const h = MyHash(prefix);
+      if (h in this.hash2idx) {
+        const hs = this.hash2idx[h];
+        for (let i=0; i<hs.length; i++) {
+          const ik = hs[i];
+          if (this.KeyEq(ik[0], prefix)) {
+            return this.entries[ik[1]][1];
+          }
+        }
+      }
+      return [NEG_INF, NEG_INF];
     }
-    return [NEG_INF, NEG_INF];
   }
   Set(prefix, value) {
-    const k = prefix.toString();
-    let idx = this.key2idx[k];
-    if (idx != undefined) {
-      this.entries[idx][1] = value;
+    if (!USE_HASH) {
+      const k = prefix.toString();
+      let idx = this.key2idx[k];
+      if (idx != undefined) {
+        this.entries[idx][1] = value;
+      }
+      else
+        this.AddEntry(prefix.slice(), value);
+    } else {
+      const h = MyHash(prefix);
+      let modified = false;
+      if (h in this.hash2idx) {
+        const hs = this.hash2idx[h];
+        for (let i=0; i<hs.length; i++) {
+          const ik = hs[i];
+          if (this.KeyEq(ik[0], prefix)) {
+            this.entries[ik[1]][1] = value;
+            modified = true;
+          }
+        }
+      }
+      if (!modified) {
+        this.AddEntry(prefix.slice(), value);
+      }
     }
-    this.AddEntry(prefix.slice(), value);
   }
   Print() {
     this.entries.forEach((e) => {
@@ -151,3 +222,4 @@ function Decode(probs, beam_size, blank) {
   }
   return [beam.entries[0][0], -Logsumexp(beam.entries[0][1])]
 }
+

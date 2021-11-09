@@ -1,7 +1,7 @@
 let g_touch_state, g_touch0_identifier;
 let g_pointer_x, g_pointer_y, g_touch_start_y;
 let g_prev_touch_millis = 0;
-const DEBOUNCE_THRESH = 100;
+const DEBOUNCE_THRESH = 80;
 let g_last_mouse_pos = [-999, -999];
 let g_drag_start_mouse_pos = [-999, -999];
 let g_drag_start_node_pos = [-999, -999];

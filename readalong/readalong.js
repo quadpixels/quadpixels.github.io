@@ -200,6 +200,8 @@ class Aligner {
     const FuzzyPinyinCompleteList = [
       new Set([ "ri", "lv", "ng" ]),
       new Set([ "wang", "huang", "weng", "wen", "wan", "huan", "o", "fang" ]), 
+      new Set([ "lei", "wei" ]),
+      new Set([ "li", "ling" ]),
     ];
       
     if (USE_FUZZY) {
@@ -229,8 +231,6 @@ class Aligner {
         }
       }
     }
-    
-    //console.log(x_backup + " = " + part0 + " + " + part1 + " + "  + part2);
     
     return part0 + part1 + part2;
   }
@@ -388,6 +388,21 @@ function LoadPrevDataset() {
 function LoadNextDataset() {
   g_data_idx ++; if (g_data_idx >= DATA.length) { g_data_idx = DATA.length - 1; }
   LoadDataset(g_data_idx);
+}
+function ModifyDataIdx(delta) {
+  if (delta > 0) {
+    for (let i=0; i<delta; i++) {
+      g_data_idx ++;
+    }
+    if (g_data_idx >= DATA.length) { g_data_idx = DATA.length - 1; }
+    LoadDataset(g_data_idx);
+  } else {
+    for (let i=0; i<(-delta); i++) {
+      g_data_idx --;
+    }
+    if (g_data_idx < 0) { g_data_idx = 0; }
+    LoadDataset(g_data_idx);
+  }
 }
 
 let g_message = "";
