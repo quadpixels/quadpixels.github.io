@@ -652,7 +652,7 @@ const DATA = [
     [ "千取百，二为三，魏尚对周堪。", "qian qu bai er wei san wei shang dui zhou kan" ],
     [ "海门翻夕浪，山市拥晴岚。", "hai men fan xi lang shan shi yong qing lan" ],
     [ "新缔直投公子纻，旧交犹脱馆人骖。", "xin di zhi tou gong zi zhu jiu jiao you tuo guan ren can" ],
-    [ "文在淹通，已咏冰兮寒过水；", "wen zai yan tong yi yong bing xi han guo shui" ],
+    [ "文达淹通，已咏冰兮寒过水；", "wen 达 yan tong yi yong bing xi han guo shui" ],
     [ "永和博雅，可知青者胜于蓝。", "yong he bo ya ke zhi qing zhe sheng yu lan" ],
   ],
   [

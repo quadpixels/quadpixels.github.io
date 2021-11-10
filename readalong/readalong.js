@@ -217,7 +217,7 @@ class Aligner {
     
     const FuzzyPinyinCompleteList = [
       new Set([ "ri", "lv", "ng" ]),
-      new Set([ "wang", "huang", "weng", "wen", "wan", "huan", "o", "fang" ]), 
+      new Set([ "wang", "huang", "weng", "wen", "wan", "huan", "o", "fang", "hua" ]), 
       new Set([ "lei", "wei" ]),
       new Set([ "li", "ling" ]),
     ];
