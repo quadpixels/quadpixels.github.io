@@ -39,8 +39,9 @@ function ScaleFFTDataPoint(x) {
 
 LoadModel();
 
+let weight_mask = undefined;
+
 onmessage = async function(event) {
-  console.dir(event);
   if (event.data.tag == "Predict") {
     // Predict
     const ms0 = millis();
@@ -64,7 +65,13 @@ onmessage = async function(event) {
       let line = [];
       let idx0 = S * t;
       for (let s=0; s<S; s++) {
-        line.push(src[s + idx0]);
+        let value = src[s + idx0];
+
+        if (weight_mask != undefined) {
+          value = value * weight_mask[s];
+        }
+
+        line.push(value);
       }
       temp0array.push(line);
     }
@@ -81,5 +88,7 @@ onmessage = async function(event) {
       "Serial": event.serial,
       "Decoded": out
     });
+  } else if (event.data.tag == "weight_mask") {
+    weight_mask = event.data.weight_mask;
   }
 }

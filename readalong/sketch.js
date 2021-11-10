@@ -560,11 +560,47 @@ class PathfinderViz {
   }
 }
 
+class MovingWindowVis {
+  constructor() {
+    this.w = 100;
+    this.h = 32;
+    this.x = 0; this.y = 0;
+    this.weights = [];
+    this.UpdateWeights(6);
+  }
+  Render() {
+    push();
+    //rect(this.x, this.y, this.w, this.h);
+    const len = this.weights.length;
+    stroke(32);
+    fill(COLOR0);
+    for (let i=0; i<len; i++) {
+      const x0 = map(i, 0, len, this.x, this.x+this.w);
+      const x1 = map(i+1,0,len, this.x, this.x+this.w);
+      const y0 = map(this.weights[i], 1, 0, this.y, this.y+this.h);
+      const y1 = this.y+this.h;
+      rect(x0, y0, x1-x0, y1-y0);
+      //console.log(x0 + " " + x1 + " " + y0 + " " + y1)
+    }
+    pop();
+  }
+  UpdateWeights(l) {
+    this.len = l;
+    this.weights = [];
+    for (let i=0; i<l; i++) {
+      //const w = Math.exp(-i*i*0.04);
+      const w = 1;
+      this.weights.push(w);
+    }
+  }
+}
+
 var g_loudness_vis, g_fft_vis;
 var g_recording = false;
 //var g_rec_mfcc = [];
 //var graph_rec_mfcc;
 var graph_mfcc0, graph_diff;
+var g_moving_window_vis;
 
 var soundReady = true;
 
@@ -589,12 +625,75 @@ let g_buttons = [];
 
 function OnPredictionResult(res) {
   const d = res.data;
-  console.log(d.Decoded);
   g_pathfinder_viz.SetResult(d.Decoded, d.PredictionTime, d.DecodeTime);
   OnNewPinyins(d.Decoded.split(" "));
 }
 
+// For moving window stuff
+let g_py2idx = {};
+let g_weight_mask = 0;
+function OnUpdateWeightMask() {
+  const N = g_moving_window_vis.weights.length;
+  UpdateWeightMask(g_moving_window_vis.weights,
+                   g_aligner.GetNextPinyins(N));
+}
+function UpdateWeightMask(window_weights, next_pinyins) {
+  let m = [];
+  const W0 = 40;
+  for (let i=0; i<PINYIN_LIST.length; i++) {
+    m.push(0);
+  }
+  const N = min(next_pinyins.length, window_weights.length);
+  for (let i=0; i<N; i++) {
+    const p = next_pinyins[i];
+    const idxes = g_py2idx[p];
+    if (idxes == undefined) {
+      continue;
+    }
+    for (let j=0; j<idxes.length; j++) {
+      const idx = idxes[j];
+      if (m[idx] == 0) {
+        m[idx] = W0;
+      } else {
+        m[idx] *= window_weights[i];
+      }
+    }
+  }
+  for (let i=0; i<PINYIN_LIST.length; i++) {
+    m[i] += 1;
+  }
+  if (g_worker != undefined) {
+    g_worker.postMessage({
+      "tag": "weight_mask",
+      "weight_mask": m
+    });
+  }
+}
+function ResetWeightMask() {
+  if (g_worker != undefined) {
+    g_worker.postMessage({
+      "tag": "weight_mask",
+      "weight_mask": undefined
+    });
+  }
+}
+
 async function setup() {
+  // Setup window stuff
+  for (let i=0; i<PINYIN_LIST.length; i++) {
+    let p = PINYIN_LIST[i];
+    let j = 0;
+    for (; j<p.length; j++) {
+      if (p[j]>='0' && p[j]<='9') break;
+    }
+    p = p.slice(0, j);
+    if (!(p in g_py2idx)) {
+      g_py2idx[p] = [ i ];
+    } else {
+      g_py2idx[p].push(i);
+    }
+  }
+
   g_audio_file_input = document.getElementById("audio_input");
   g_audio_file_input.addEventListener("input", async (x) => {
     console.log("addEventListener");
@@ -612,6 +711,9 @@ async function setup() {
   graph_diff = createGraphics(512, 512);
   g_loudness_vis = new LoudnessVis();
   g_fft_vis = new FFTVis();
+  g_moving_window_vis = new MovingWindowVis();
+  g_moving_window_vis.x = 374;
+  g_moving_window_vis.y = 90;
 
   g_textarea = createElement("textarea", "");
   g_textarea.size(320, 50);
@@ -807,6 +909,8 @@ function draw() {
     g_recorderviz.Render();
     g_pathfinder_viz.Render();
   }
+
+  g_moving_window_vis.Render();
 
   const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
   noFill();

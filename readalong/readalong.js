@@ -1,3 +1,4 @@
+const PROBE_RANGE0 = 4, PROBE_INCREMENT0 = 2;
 
 class Aligner {
   constructor() {
@@ -15,9 +16,12 @@ class Aligner {
     this.char_idx   = 0; // 第几个字，可能与拼音有出入 
     this.pinyin_idx = 0; // 第几个拼音
     
-    for (let i=0; i<data.length; i++) {
-      data[i][1] = data[i][1].split(" ");
+    if (data.length > 0) {
+      for (let i=0; i<data.length; i++) {
+        data[i][1] = data[i][1].split(" ");
+      }
     }
+    OnUpdateWeightMask();
   }
   
   static PUNCT = new Set(['，', '。', '；']);
@@ -47,6 +51,20 @@ class Aligner {
     return ret;
   }
   
+  GetNextPinyins(n) {
+    let ret = [];
+    let l = this.line_idx, c = this.char_idx;
+    for (let i=0; i<n; i++) {
+      ret.push(this.data[l][1][c]);
+      c++;
+      if (c >= this.data[l][1].length) {
+        c = 0; l++;
+      }
+      if (l >= this.data.length) break;
+    }
+    return ret;
+  }
+
   Render() {
     push();
     noStroke();
@@ -246,7 +264,7 @@ class Aligner {
   
   OnNewPinyins(newpys) {
     // 返回是在第几个 index 找到的
-    let PROBE_RANGE = 4, PROBE_INCREMENT = 2;
+    let PROBE_RANGE = PROBE_RANGE0, PROBE_INCREMENT = PROBE_INCREMENT0;
     let pidx = this.pinyin_idx, lidx = this.line_idx;
     let nidx = 0;
     let found = -1;
@@ -276,6 +294,7 @@ class Aligner {
         this.pinyin_idx = pidx;
         this.char_idx = this.PinyinIdxToCharIdx(lidx, pidx);
         this.line_idx = lidx;
+        OnUpdateWeightMask();
       }
     }
     
@@ -430,7 +449,6 @@ function RenderReadAlong(deltaTime) {
 
 let g_highlights = {}
 function OnNewPinyins(x) {
-  console.log(x);
   g_aligner.OnNewPinyins(x);
   
   // Highlight 拼音's
