@@ -146,6 +146,9 @@ async function LoadModelNonWorker() {
   // 假定这时已经装入webgl后端了
   if (g_btn_mic.is_enabled == true) {
     g_btn_mic.clicked();
+    setTimeout(() => {
+      g_stats4nerds.Hide();
+    }, 1000);
   }
   
   g_model = model;
@@ -188,6 +191,9 @@ async function LoadModel() {
           // 同时按下“Mic”按钮
           if (g_btn_mic.is_enabled == true) {
             g_btn_mic.clicked();
+            setTimeout(() => {
+              g_stats4nerds.Hide();
+            }, 1000);
           }
         }
 

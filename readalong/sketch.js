@@ -21,7 +21,7 @@ let g_tfjs_use_webworker = undefined;
 var g_hovered_button = undefined;
 
 // UI元素的位置
-const STATS4NERDS_POS = [ 1, 70 ];
+const STATS4NERDS_POS = [ 1, -220 ];
 const RUNNINGMODEVIS_POS = [ 10, 70 ];
 
 // 是否只有按住REC时才录音
@@ -780,24 +780,35 @@ class Stats4Nerds extends MyStuff {
     stroke(32);
     DrawBorderStyle2(0, 0, this.w, this.h);
   }
+
+  Hide() {
+    const Y0 = -220, Y1 = 70;
+    g_btn_statsfornerds.is_enabled = false;
+    g_animator.Animate(this, "y", undefined, [Y1, Y0], [0, 300], ()=>{
+      this.y = Y0;
+      this.is_hiden = true;
+      g_btn_statsfornerds.is_enabled = true;
+    });
+  }
+
+  Show() {
+    const Y0 = -220, Y1 = 70;
+    this.is_hidden = false;
+    g_btn_statsfornerds.is_enabled = false;
+    g_animator.Animate(this, "y", undefined, [Y0, Y1], [0, 300], ()=>{
+      this.y = Y1;
+      this.is_hiden = false;
+      g_btn_statsfornerds.is_enabled = true;
+    });
+  }
+
   Toggle() {
     g_animator.FinishAllPendingAnimations();
     const Y0 = -220, Y1 = 70;
     if (this.y == Y1) {
-      g_btn_statsfornerds.is_enabled = false;
-      g_animator.Animate(this, "y", undefined, [Y1, Y0], [0, 300], ()=>{
-        this.y = Y0;
-        this.is_hiden = true;
-        g_btn_statsfornerds.is_enabled = true;
-      });
+      this.Hide();
     } else {
-      this.is_hidden = false;
-      g_btn_statsfornerds.is_enabled = false;
-      g_animator.Animate(this, "y", undefined, [Y0, Y1], [0, 300], ()=>{
-        this.y = Y1;
-        this.is_hiden = false;
-        g_btn_statsfornerds.is_enabled = true;
-      });
+      this.Show();
     }
   }
 }
@@ -1285,6 +1296,14 @@ async function setup() {
   g_animator = new Animator()
 
   SetupReadAlong();
+
+  setTimeout(() => {
+    g_btn_statsfornerds.clicked();
+  }, 5);
+
+  setTimeout(() => {
+    g_btn_load_model.clicked();
+  }, 1000);
 }
 
 function draw() {
