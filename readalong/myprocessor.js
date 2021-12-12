@@ -1,15 +1,5 @@
 // Note: must bake the RingBuffer into the MyProcessor class perhaps due to how modules work.
 class MyProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() {
-    return [
-      {
-        name: 'sourceSampleRate',
-        defaultValue: 44100,
-        minValue: 1,
-        maxValue: 192000
-      }
-    ]
-  }
   SetSourceSampleRate(sr) {
     // 坑：在手机上是48KHz，但是PC上是44100Hz
     this.original_sample_rate = sr;
@@ -18,7 +8,7 @@ class MyProcessor extends AudioWorkletProcessor {
     this.orig_step_size = 160;
     this.out_step_size = sr/100;
   }
-  constructor() {
+  constructor(options) {
     super();
     this.soundDataCallback = undefined;
     
@@ -31,7 +21,17 @@ class MyProcessor extends AudioWorkletProcessor {
     this.tot_entries = 0
     // End ring buffer
 
-    this.SetSourceSampleRate(44100);
+    let sampleRate = 44100;
+    console.log("options: ");
+    console.log(options)
+
+    // processorOptions 是 AudioWorkletProcessor的构建函数的参数中的一个域
+    // https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletProcessor/AudioWorkletProcessor
+    if (options.processorOptions.sampleRate != undefined) {
+      sampleRate = options.processorOptions.sampleRate;
+    }
+    console.log("[MyProcessor]  sample rate: " + sampleRate);
+    this.SetSourceSampleRate(sampleRate);
 
     this.orig_step = 0;
     this.out_step  = 0;
@@ -78,11 +78,6 @@ class MyProcessor extends AudioWorkletProcessor {
   }
 
   process (inputs, outputs, parameters) {
-    
-    if (parameters['sourceSampleRate']) {
-      this.SetSourceSampleRate(parameters['sourceSampleRate'][0]);
-    }
-
     if (this.tot_entries == 0) {
       console.log("Parameters:")
       console.log(parameters)

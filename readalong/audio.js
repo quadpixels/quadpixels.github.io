@@ -8,9 +8,13 @@ function SetupMicrophoneInput(bufferSize) {
   }
 
   // Q: Cannot change sample rate in Firefox
-  let context = new AudioContext({ sampleRate:44100 });
+  let context = new AudioContext();
   g_audio_context = context;
   g_pathfinder_viz.result = g_audio_context.sampleRate + " Hz"
+  g_worker.postMessage({
+    tag: "sampleRate",
+    sampleRate: g_audio_context.sampleRate
+  })
 
   var errorCallback = function errorCallback(err) {
     g_pathfinder_viz.result = err
@@ -25,16 +29,25 @@ function SetupMicrophoneInput(bufferSize) {
       audio: true
     };
     var successCallback = async function successCallback(mediaStream) {
-      window.mediaStream = mediaStream;
-      var source = context.createMediaStreamSource(window.mediaStream);
+      g_media_stream = mediaStream;
+
+      // 在Firefox中，可能会遇到这个问题：
+      // Uncaught (in promise) DOMException: AudioContext.createMediaStreamSource: \
+      // Connecting AudioNodes from AudioContexts with different sample-rate is \
+      // currently not supported.
+
+      var source = context.createMediaStreamSource(g_media_stream);
       let m = await context.audioWorklet.addModule('myprocessor.js');
-      let processor = await CreateMyProcessor(context);
+      let processor = await CreateMyProcessor(context, { processorOptions: {sampleRate: g_audio_context.sampleRate} });
       g_my_processor = processor;
-      source.connect(processor);
+      g_audio_source = source;
+      g_audio_source.connect(g_my_processor);
+      if (g_push_to_talk) {
+        g_audio_context.suspend();
+      }
     };
 
     try {
-      g_
       navigator.getUserMedia(constraints, successCallback, errorCallback);
     } catch (e) {
       var p = navigator.mediaDevices.getUserMedia(constraints);
@@ -63,8 +76,8 @@ async function CreateAudioInput(the_file) {
 };
 
 // Create my processor & bind events
-async function CreateMyProcessor(ctx) {
-  const myProcessor = new AudioWorkletNode(ctx, 'myprocessor');
+async function CreateMyProcessor(ctx, options) {
+  const myProcessor = new AudioWorkletNode(ctx, 'myprocessor', options);
   // port: https://stackoverflow.com/questions/62702721/how-to-get-microphone-volume-using-audioworklet
   myProcessor.port.onmessage = ((event) => {
     const ms = millis();
@@ -95,20 +108,101 @@ async function CreateMyProcessor(ctx) {
   return myProcessor;
 }
 
+// Load model, not using web worker
+async function LoadModelNonWorker() {
+
+  // Clear status bits
+  g_tfjs_use_webworker = undefined;
+  g_tfjs_backend = undefined;
+  g_tfjs_version = undefined;
+
+  g_tfjs_version = "Initializing model in main thread";
+  console.log("Loading model");
+  const ms0 = millis();
+  const model = await tf.loadLayersModel("model/model.json");
+  const ms1 = millis();
+  console.log("Model loading took " + (ms1-ms0) + " ms")
+
+  g_runningmode_vis.SetInfo("Backend=" + tf.getBackend() + ", pre-heating ..", 2000);
+
+  const N = 400;
+  let tb = tf.buffer([1, N, 200, 1]);
+  await model.predictOnBatch(tb.toTensor());
+  const ms2 = millis();
+  console.log("Model preheat took " + (ms2-ms1) + " ms");
+
+  // Update Running Mode Viz
+  g_tfjs_backend = tf.getBackend();
+  g_tfjs_use_webworker = false;
+  g_tfjs_version = tf.version.tfjs + "(" + g_tfjs_backend + ")";
+
+  if (g_tfjs_backend == "webgl") {
+    g_runningmode_vis.SetInfo("WebGL backend initialized.", 2000);
+  } else {
+    g_runningmode_vis.SetInfo("No WebGL support.\nUser experience may be suboptimal.", 5000);
+  }
+
+
+  // 假定这时已经装入webgl后端了
+  if (g_btn_mic.is_enabled == true) {
+    g_btn_mic.clicked();
+  }
+  
+  g_model = model;
+}
+
 // Load model
+// 偏好顺序：
+// 1) Web Worker 里的 WebGL后端
+// 2) 主线程里的 WebGL后端
 async function LoadModel() {
   if (window.Worker) {
     console.log("Web worker support detected.");
     g_worker = new Worker("myworker.js");
     g_worker.postMessage("Hey!");
     g_tfjs_version = "Initializing model in WebWorker";
+
     g_worker.onmessage = ((event) => {
       if (event.data.TfjsVersion) {
-        g_tfjs_version = event.data.TfjsVersion
+        g_tfjs_version = event.data.TfjsVersion;
+        g_tfjs_backend = event.data.TfjsBackend;
+        g_tfjs_use_webworker = true;
+
+        if (g_tfjs_backend == "cpu") {
+          g_tfjs_use_webworker = false;
+          g_runningmode_vis.SetInfo("Web worker does not appear to work with WebGL backend.\nAttempting to load model without WebWorker ..");
+          setTimeout(() => {
+            g_worker.postMessage({
+              "tag": "dispose",
+            });
+            g_runningmode_vis.SetInfo("Loading model without using Webworker..");
+            LoadModelNonWorker();
+          }, 1000);
+        } else if (event.data.Loaded == undefined) {
+          console.log("WebGL backend enabled for Web Worker, initializing model.")
+          g_runningmode_vis.SetInfo("WebGL backend enabled for Web Worker, initializing model.");
+          g_worker.postMessage({
+            "tag": "LoadModel"
+          })
+        } else if (g_tfjs_backend == "webgl") {
+          // 同时按下“Mic”按钮
+          if (g_btn_mic.is_enabled == true) {
+            g_btn_mic.clicked();
+          }
+        }
+
+      } else if (event.data.message) {
+        if (event.data.message == "preheat_done") {
+          console.log("preheat done");
+        }
       } else {
         OnPredictionResult(event);
       }
     });
+    g_btn_wgt_add.is_enabled = true;
+    g_btn_wgt_sub.is_enabled = true;
+    g_btn_frameskip_add.is_enabled = true;
+    g_btn_frameskip_sub.is_enabled = true;
   } else {
     g_tfjs_version = "Initializing model in main thread";
     console.log("Loading model");

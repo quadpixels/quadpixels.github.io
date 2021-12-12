@@ -220,6 +220,7 @@ class Aligner {
       new Set([ "wang", "huang", "weng", "wen", "wan", "huan", "o", "fang", "hua" ]), 
       new Set([ "lei", "wei" ]),
       new Set([ "li", "ling" ]),
+      new Set([ "qiu", "qiong" ]),
     ];
       
     if (USE_FUZZY) {
@@ -426,7 +427,7 @@ function ModifyDataIdx(delta) {
 
 let g_message = "";
 
-let g_readalong_x = 4, g_readalong_y = 280;
+let g_readalong_x = 4, g_readalong_y = 74;
 let g_readalong_w = 472, g_readalong_h = 480 - g_readalong_y;
 function RenderReadAlong(deltaTime) {
   // Fade lights

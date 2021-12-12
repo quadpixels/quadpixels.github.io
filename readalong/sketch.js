@@ -2,19 +2,36 @@
 // audio stuff
 
 const COLOR0 = "rgba(167,83,90,1)"; // 满江红
+const COLOR1 = "rgba(238,162,164,1)" // 牡丹粉红
 const COLOR_FFTBARS = "rgba(238,162,164,1)" // 牡丹粉红
+const FRAMERATE_NORMAL = 30;
+const FRAMERATE_RECORDING = 10;
 
-var g_audio_context;
+var g_animator;
+
+var g_audio_context, g_media_stream;
 var normalized = [];
 var amplitudeSpectrum;
 var g_buffer = [];
 var g_model;
 var g_worker;
 let g_tfjs_version = undefined;
+let g_tfjs_backend = undefined;
+let g_tfjs_use_webworker = undefined;
 var g_hovered_button = undefined;
 
-const STATUS_Y = 208;
+// UI元素的位置
+const STATS4NERDS_POS = [ 1, 70 ];
+const RUNNINGMODEVIS_POS = [ 10, 70 ];
+
+// 是否只有按住REC时才录音
+// true：按下时才录音
+// false：无论何时都录音，但是只有按下时会加入识别队列
+var g_push_to_talk = true;
+
+const STATUS_Y = 98;
 // Audio processor
+var g_audio_source;
 var g_my_processor;
 
 const W0 = 480, H0 = 854;
@@ -59,57 +76,67 @@ function OnWindowResize() {
 
 var g_btn_rec, g_btn_mic, g_btn_file, g_btn_demo_data;
 var g_btn_load_model, g_btn_predict;
+var g_btn_wgt_add, g_btn_wgt_sub, g_btn_frameskip_add, g_btn_frameskip_sub;
 
 function VerticalLayout() {
 
 }
 
-class LoudnessVis {
+var g_ui_translate_x = 0, g_ui_translate_y = 0;
+class MyStuff {
   constructor() {
-    this.max_value = 16;
-    this.x = 500;
-    this.y = STATUS_Y;
-    this.w = 100;
-    this.h = 13;
+    this.x = 0;
+    this.y = 0;
+    this.children = [];
   }
 
-  Render(value) {
-    while (this.max_value < value) {
-      this.max_value += 8;
-    }
-    const TEXT_SIZE = 16;
+  Push() {
     push();
-    noStroke();
-    fill(32);
-    textAlign(LEFT, TOP);
-    text("Loudness: " + value.toFixed(1), this.x, this.y + TEXT_SIZE + this.h);
-    fill(122);
+    g_ui_translate_x += this.x; g_ui_translate_y += this.y;
+    translate(this.x, this.y);
+  }
 
-    rect(this.x, this.y, this.w * value / this.max_value, this.h);
-    // xbreaks
-    const N = 5;
-    textAlign(CENTER, TOP);
-    for (let i=0; i<N; i++) {
-      const valu = parseInt(this.max_value * i / (N-1));
-      const dx = map(i, 0, N-1, this.x, this.x + this.w);
-      text(valu+"", dx, this.y+TEXT_SIZE);
-      stroke(64);
-      line(dx, this.y, dx, this.y + TEXT_SIZE-1);
-      noStroke();
-    }
-
-    noFill();
-    stroke(32);
-    rect(this.x, this.y, this.w, this.h);
-
+  Pop() {
+    g_ui_translate_x -= this.x; g_ui_translate_y -= this.y;
     pop();
+  }
+
+  Render() {
+    if (this.is_hidden == true) return;
+    this.Push();
+    this.do_Render();
+    if (this.children != undefined) {
+      this.children.forEach((c) => {
+        c.Render();
+      })
+    }
+    this.Pop();
+  }
+
+  SetParent(p) {
+    if (p.children != undefined) {
+      p.children.push(this);
+      this.parent = p;
+    } else {
+      
+    }
+  }
+
+  IsHidden() {
+    if (this.is_hidden == true) return true;
+    else {
+      const p = this.parent;
+      if (p == undefined) return false;
+      else return p.IsHidden();
+    }
   }
 }
 
-class FFTVis {
+class FFTVis extends MyStuff {
   constructor() {
+    super();
     this.nshown = 200;
-    this.x = 210;
+    this.x = 200;
     this.y = STATUS_Y;
     this.w = 256;
     this.h = 13;
@@ -131,7 +158,7 @@ class FFTVis {
     this.sliding_window.AddOneEvent(millis());
   }
 
-  Render() {
+  do_Render() {
     const ms = millis();
     if (ms >= this.last_win_ms + 1000) {
       this.fft_per_sec = this.sliding_window.GetCountAndTotalWeightAfter(ms - 1000);
@@ -142,12 +169,13 @@ class FFTVis {
     const fft = this.fft;
     const TEXT_SIZE = 16;
 
+    noStroke();
     fill(COLOR0);
     for (let i=0; i<this.nshown && i < fft.length; i++) {
-      const x0 = map(i, 0, this.nshown-1, this.x, this.x+this.w);
-      const x1 = map(i+1,0,this.nshown-1, this.x, this.x+this.w);
-      const y0 = constrain(map(this.myMap(fft[i]), 0, 1, this.y+this.h, this.y), this.y, this.y+this.w);
-      rect(x0, y0, x1-x0+1, this.h+this.y-y0);
+      const x0 = map(i,   0, this.nshown-1, 0, this.w);
+      const x1 = map(i+1, 0, this.nshown-1, 0, this.w);
+      const y0 = constrain(map(this.myMap(fft[i]), 0, 1, this.h, 0), 0, this.w);
+      rect(x0, y0, x1-x0+1, this.h-y0);
     }
 
     const nbreaks = 9;
@@ -162,35 +190,36 @@ class FFTVis {
       if (freq > 1000) {
         freq = parseFloat(freq / 1000).toFixed(1) + "k";
       }
-      const dx = map(i, 0, nbreaks-1, this.x, this.x+this.w);
+      const dx = map(i, 0, nbreaks-1, 0, this.w);
       stroke(122);
       noFill();
-      line(dx, this.y, dx, this.y+this.h);
+      line(dx, 0, dx, this.h);
 
       noStroke();
       fill(122);
-      text(freq+"", dx, this.y + TEXT_SIZE);
+      text(freq+"", dx, TEXT_SIZE);
     }
 
     const binwidth = parseFloat(fftfreq / (fft.length / 2));
     textAlign(LEFT, TOP);
     text(binwidth + " hz * " + fft.length + " bins, showing " + this.nshown + " bins",
-      this.x, this.y + TEXT_SIZE*2);
+      0, TEXT_SIZE*2);
     fill(32);
-    text(this.fft_per_sec[0] + " ffts/s ", this.x, this.y + TEXT_SIZE * 3);
+    text(this.fft_per_sec[0] + " ffts/s ", 0, TEXT_SIZE * 3);
 
     noFill();
     stroke(32);
-    rect(this.x, this.y, this.w, this.h);
+    rect(0, 0, this.w, this.h);
   }
 }
 
-class AudioStatsViz {
+class AudioStatsViz extends MyStuff {
   constructor() {
+    super();
     this.window_audiosample = new SlidingWindow();
     this.samp_per_sec = 0;
     this.cb_per_sec   = 0;
-    this.x = 16;
+    this.x = 8;
     this.y = STATUS_Y;
     this.last_ms = 0;
     this.w = 64;
@@ -202,7 +231,7 @@ class AudioStatsViz {
     this.window_audiosample.AddOneEvent(millis(), buffer.length);
   }
 
-  Render() {
+  do_Render() {
     const TEXT_SIZE = 16
     const ms = millis();
     if (ms > this.last_ms + 1000) {
@@ -222,10 +251,10 @@ class AudioStatsViz {
     //text("tfjs " + tf.version.tfjs, this.x, this.y + TEXT_SIZE*4);
 
     fill(122);
-    text(this.lb.toFixed(2) + ".." + this.ub.toFixed(2), this.x, this.y + TEXT_SIZE);
+    text(this.lb.toFixed(2) + ".." + this.ub.toFixed(2), 0, TEXT_SIZE);
     fill(32);
-    text(this.samp_per_sec + " sp/s", this.x, this.y + TEXT_SIZE*2);
-    text(this.cb_per_sec + " cb/s", this.x, this.y + TEXT_SIZE*3);
+    text(this.samp_per_sec + " sp/s", 0, TEXT_SIZE*2);
+    text(this.cb_per_sec + " cb/s", 0, TEXT_SIZE*3);
     // draw buffer
     const b = g_buffer;
 
@@ -234,7 +263,7 @@ class AudioStatsViz {
       this.lb = min(this.lb, b[i]);
     }
 
-    const dy_min = this.y, dy_max = dy_min + 13;
+    const dy_min = 0, dy_max = dy_min + 13;
     noFill();
     stroke(COLOR0);
     for (let i=1; i<b.length && i < this.w; i++) {
@@ -243,12 +272,12 @@ class AudioStatsViz {
       const samp0 = b[idx0], samp1 = b[idx1];
       const dy0 = map(samp0, this.lb, this.ub, dy_max, dy_min);
       const dy1 = map(samp1, this.lb, this.ub, dy_max, dy_min);
-      const dx0 = i-1+ this.x;
-      const dx1 = i  + this.x;
+      const dx0 = i-1;
+      const dx1 = i  ;
       line(dx0, dy0, dx1, dy1);
     }
     stroke(32);
-    rect(this.x, dy_min, this.w, dy_max-dy_min);
+    rect(0, dy_min, this.w, dy_max-dy_min);
 
     pop();
   }
@@ -256,13 +285,14 @@ class AudioStatsViz {
 
 // for manually recording a small segment of sound & testing
 // model uses 25ms width and 10ms delta
-class RecorderViz {
+class RecorderViz extends MyStuff {
   constructor() {
+    super();
     this.Clear();
     this.graph = createGraphics(500, 32);
     this.is_recording = false;
     this.x = 16;
-    this.y = 80;
+    this.y = 680;
     this.window_delta = 10; // ms
     this.graph.clear();
     this.start_record_ms = 0;
@@ -287,6 +317,8 @@ class RecorderViz {
     this.buffer = [];
     this.start_record_ms = millis();
     this.window_offset = 0;
+    g_audio_context.resume();
+    frameRate(FRAMERATE_RECORDING);
   }
 
   myMap(x) {
@@ -328,17 +360,75 @@ class RecorderViz {
   }
 
   StopRecording() {
+    g_audio_context.suspend();
     this.is_recording = false;
     this.duration_ms = millis() - this.start_record_ms;
+    frameRate(FRAMERATE_NORMAL);
+  }
+
+  ShouldAddFFT() {
+    if (g_push_to_talk)
+      return true;
+    else {
+      return this.is_recording;
+    }
   }
 
   AddSpectrumIfRecording(fft) {
-    if (!this.is_recording) return;
+    if (!this.ShouldAddFFT()) {
+      return;
+    }
     this.RenderOneLineOfFFT(fft, this.buffer.length);
     this.buffer.push(fft);
   }
 
-  Render() {
+  async DoPrediction() {
+    // 每次画图的时候进行预测或者提交预测请求
+    if (this.window_width + this.window_offset <= this.buffer.length) {
+      let ffts = this.buffer.slice(this.window_offset, 
+                                    this.window_offset + this.window_width);
+      if (ffts.length > 0) {
+        if (g_tfjs_use_webworker == true) {
+          g_worker.postMessage({
+            "tag": "Predict",
+            "ffts": ffts
+          });
+        } else {
+          const ms0 = millis();
+          const temp0 = await DoPrediction(ffts);
+          const ms1 = millis();
+
+          temp0array = []; // for ctc
+          const T = temp0.shape[1];
+          const S = temp0.shape[2];
+          let src = temp0.slice([0, 0, 0], [1, T, S]).dataSync();
+          for (let t=0; t<T; t++) {
+            let line = [];
+            let idx0 = S * t;
+            for (let s=0; s<S; s++) {
+              let value = src[s + idx0];
+
+              if (g_weight_mask != undefined) {
+                value = value * g_weight_mask[s];
+              }
+
+              line.push(value);
+            }
+            temp0array.push(line);
+          }
+
+          g_worker.postMessage({
+            "tag": "decode",
+            "S": temp0.shape[2],
+            "temp0array": temp0array,
+          });
+        }
+      }
+      this.window_offset += this.window_delta;
+    }
+  }
+
+  async do_Render() {
     push();
     noStroke();
     
@@ -355,56 +445,48 @@ class RecorderViz {
 
     dx = textWidth(txt) + 3;
 
-    text(txt, this.x, this.y);
+    text(txt, 0, 0);
 
     if (!this.is_recording) {
       fill(122);
-      text("Not recording", this.x + dx, this.y);
+      text("Not recording", dx, 0);
     } else {
       fill("#F88");
       this.duration_ms = millis() - this.start_record_ms;
-      text("Recording", this.x + dx, this.y);
+      text("Recording", dx, 0);
     }
 
     noFill();
     stroke(32);
     const h = this.graph.height;
-    let dy = this.y + 15;
+    let dy = 15;
     const w = this.buffer.length;
-    image(this.graph, this.x, dy);
+    const w1 = w + this.window_width;
+
+    if (w1 > W0) {
+      scale(W0/w1, 1);
+    }
+
+    image(this.graph, 0, dy);
     noFill();
     stroke("#33f");
-    const dx1 = this.x + this.window_offset;
+    const dx1 = this.window_offset;
     rect(dx1, dy, this.window_width, h);
     stroke(32);
-    rect(this.x, dy, w, h);
+    rect(0, dy, w, h);
 
     pop();
 
-    // Also, submit recog task
-    if (g_worker != undefined) {
-      if (this.window_width + this.window_offset <= this.buffer.length) {
-        if (g_worker) {
-          let ffts = this.buffer.slice(this.window_offset, 
-                                       this.window_offset + this.window_width);
-          if (ffts.length > 0) {
-            g_worker.postMessage({
-              "tag": "Predict",
-              "ffts": ffts
-            });
-          }
-        } else {
-          console.log("Should do non-worker version here.");
-        }
-        this.window_offset += this.window_delta;
-      }
-    }
+    // 在绘图完成时，进行预测
+    this.DoPrediction();
   }
 }
 
-class Button {
+class Button extends MyStuff {
   constructor(txt) {
-    this.pos = new p5.Vector(32, 280);
+    super();
+    this.x = 32;
+    this.y = 280;
     this.w = 50;
     this.h = 50;
     this.is_enabled = true;
@@ -413,8 +495,9 @@ class Button {
     this.clicked = function() {}
     this.released = function() {}
     this.txt = txt;
+    this.border_style = 1;
   }
-  Render() {
+  do_Render() {
     if (!this.is_enabled) {
       this.is_hovered = false;
       this.is_pressed = false;
@@ -444,23 +527,34 @@ class Button {
     fill(f);
     stroke(c);
 
-    const x = this.pos.x, y = this.pos.y, w = this.w, h = this.h;
+    const x = 0, y = 0, w = this.w, h = this.h;
     if (!this.is_enabled) {
-      line(x, y, x+w, y+h); line(x+w, y, x, y+h);
+      line(0, 0, w, h); line(w, 0, 0, h);
     }
 
-    rect(x, y, w, h);
+    //rect(0, 0, w, h);
+    if (this.border_style == 1) {
+      DrawBorderStyle1(0, 0, w, h);
+    } else {
+      DrawBorderStyle2(0, 0, w, h);
+    }
+
     fill(c);
     textSize(Math.max(14, h / 3));
     textAlign(CENTER, CENTER);
     noStroke();
-    text(this.txt, x+w/2, y+h/2);
+    text(this.txt, w/2, h/2);
     pop();
   }
   Hover(mx, my) {
+    if (this.IsHidden()) {
+      this.is_hovered = false;
+    }
+    mx = mx - g_ui_translate_x;
+    my = my - g_ui_translate_y;
     if (!this.is_enabled) return;
-    if (mx >= this.pos.x          && my >= this.pos.y &&
-        mx <= this.pos.x + this.w && my <= this.pos.y + this.h) {
+    if (mx >= this.x          && my >= this.y &&
+        mx <= this.x + this.w && my <= this.y + this.h) {
       this.is_hovered = true;
     } else {
       this.is_hovered = false;
@@ -482,10 +576,11 @@ class Button {
   }
 }
 
-class PathfinderViz {
+class PathfinderViz extends MyStuff {
   constructor() {
+    super();
     this.x = 16;
-    this.y = 140;
+    this.y = 30;
 
     this.py2idx = {};
 
@@ -499,25 +594,24 @@ class PathfinderViz {
     this.decode_time = dec_time;
   }
 
-  Render() {
+  do_Render() {
     const TEXT_SIZE = 15;
     push();
     noStroke();
     fill(32);
     textAlign(LEFT, TOP);
 
-    //text("Result panel", this.x, this.y);
     fill(128);
     if (g_tfjs_version == undefined) {
-      text("tfjs not loaded", this.x, this.y);
+      text("tfjs not loaded", 0, 0);
     }
-    text(g_tfjs_version, this.x, this.y);
+    text(g_tfjs_version, 0, 0);
     
     fill(32);
     
-    text("Result: " + this.result, this.x, this.y + TEXT_SIZE);
-    text("Predict time: " + this.predict_time + " ms", this.x, this.y + TEXT_SIZE*2);
-    text("Decode time: " + this.decode_time + " ms", this.x, this.y + TEXT_SIZE*3);
+    text("Result: " + this.result, 0, TEXT_SIZE);
+    text("Predict time: " + this.predict_time + " ms", 0, TEXT_SIZE*2);
+    text("Decode time: " + this.decode_time + " ms", 0, TEXT_SIZE*3);
 
     pop();
   }
@@ -579,30 +673,30 @@ class PathfinderViz {
   }
 }
 
-class MovingWindowVis {
+class MovingWindowVis extends MyStuff {
   constructor() {
+    super()
     this.W0 = 40;
-    this.w = 100;
-    this.h = 32;
+    this.w = 80;
+    this.h = 24;
     this.x = 0; this.y = 0;
     this.weights = [];
     this.UpdateWeights(6);
   }
-  Render() {
+  do_Render() {
     const TEXT_SIZE = 13;
     push();
     noStroke();
     fill(128);
-    text("PredWin W=" + this.W0, this.x, this.y);
-    //rect(this.x, this.y, this.w, this.h);
+    text("PredWin W=" + this.W0, 0, 0);
     const len = this.weights.length;
     stroke(32);
     fill(220);
     for (let i=0; i<len; i++) {
-      const x0 = map(i, 0, len, this.x, this.x+this.w);
-      const x1 = map(i+1,0,len, this.x, this.x+this.w);
-      const y0 = map(this.weights[i], 1, 0, this.y, this.y+this.h) + TEXT_SIZE;
-      const y1 = this.y+this.h + TEXT_SIZE;
+      const x0 = map(i, 0, len, 0, this.w);
+      const x1 = map(i+1,0,len, 0, this.w);
+      const y0 = map(this.weights[i], 1, 0, 0, this.h) + TEXT_SIZE;
+      const y1 = this.h + TEXT_SIZE;
       rect(x0, y0, x1-x0, y1-y0);
       //console.log(x0 + " " + x1 + " " + y0 + " " + y1)
     }
@@ -612,19 +706,239 @@ class MovingWindowVis {
     this.len = l;
     this.weights = [];
     for (let i=0; i<l; i++) {
-      //const w = Math.exp(-i*i*0.04);
       const w = 1;
       this.weights.push(w);
     }
   }
 }
 
-var g_loudness_vis, g_fft_vis;
+class FrameskipVis extends MyStuff {
+  constructor() {
+    super();
+    this.frameskip = 0;
+    this.x = 274;
+    this.y = 22;
+  }
+
+  ChangeFrameskip(delta) {
+    this.frameskip += delta;
+    if (this.frameskip < 0) this.frameskip = 0;
+    g_worker.postMessage({
+      "tag": "frameskip",
+      "frameskip": this.frameskip
+    });
+  }
+
+  IncrementFrameskip() {
+    this.ChangeFrameskip(1);
+  }
+
+  DecrementFrameskip() {
+    this.ChangeFrameskip(-1);
+  }
+
+  do_Render() {
+    push();
+    noStroke();
+    fill(128);
+    text("CTC frameskip", 0, 0);
+    fill(0);
+    textSize(16);
+    text(""+this.frameskip, 0, 13);
+    pop();
+  }
+}
+
+function DrawLabel(label, x, y, w, h, highlighted = false) {
+  push();
+  rectMode(CENTER);
+  textAlign(CENTER, CENTER);
+  if (highlighted) {
+    fill(COLOR1)
+  } else {
+    noFill();
+  }
+  stroke("black");
+  rect(x, y, w, h);
+  noStroke();
+  fill("black");
+  text(label, x, y);
+  pop();
+}
+class Stats4Nerds extends MyStuff {
+  constructor() {
+    super();
+    
+    this.x = STATS4NERDS_POS[0];
+    this.y = STATS4NERDS_POS[1];
+    this.w = 476;
+    this.h = 170;
+    this.is_hidden = false;
+  }
+  do_Render() {
+    fill("rgba(255,255,255,0.95)");
+    stroke(32);
+    DrawBorderStyle2(0, 0, this.w, this.h);
+  }
+  Toggle() {
+    g_animator.FinishAllPendingAnimations();
+    const Y0 = -220, Y1 = 70;
+    if (this.y == Y1) {
+      g_btn_statsfornerds.is_enabled = false;
+      g_animator.Animate(this, "y", undefined, [Y1, Y0], [0, 300], ()=>{
+        this.y = Y0;
+        this.is_hiden = true;
+        g_btn_statsfornerds.is_enabled = true;
+      });
+    } else {
+      this.is_hidden = false;
+      g_btn_statsfornerds.is_enabled = false;
+      g_animator.Animate(this, "y", undefined, [Y0, Y1], [0, 300], ()=>{
+        this.y = Y1;
+        this.is_hiden = false;
+        g_btn_statsfornerds.is_enabled = true;
+      });
+    }
+  }
+}
+class RunningModeVis extends MyStuff {
+  constructor() {
+    super();
+    this.x = RUNNINGMODEVIS_POS[0];
+    this.y = RUNNINGMODEVIS_POS[1];
+    this.w = 460;
+    this.h = 100;
+    this.info = "";
+    this.info_millis = 0;
+
+    this.visible = true;
+  }
+
+  SetInfo(x, timeout = 2000) {
+    this.info = x;
+    this.info_millis = timeout;
+  }
+
+  do_Render() {
+    if (!this.visible) return;
+    const TEXT_SIZE = 12;
+    push();
+
+    const PAD = 4;
+    const x0 = this.x + this.w * 0.34;
+    const x1 = this.x + this.w * 0.66;
+    const yc = this.y + this.h * 0.38;
+    const y1 = this.y + this.h * 0.32;
+    const y2 = this.y + this.h * 0.5;
+    noStroke();
+    textSize(TEXT_SIZE);
+    fill("black");
+    textAlign(CENTER, TOP);
+    // text("WebWorker", x0, this.y+PAD);
+    // text("Backend",   x1, this.y+PAD);
+
+    const x00 = this.x + this.w * 0.08;
+    const x10 = this.x + this.w * 0.92;
+
+    const w0 = 48;
+    DrawLabel("Mic", x00, yc, w0, 32);
+    DrawLabel("Pinyin", x10, yc, w0, 32);
+
+    const w1 = 120;
+    DrawLabel("Worker Thread", x0, y1, w1, 16, g_tfjs_use_webworker == true);
+    DrawLabel("Main Thread", x0, y2, w1, 16, g_tfjs_use_webworker == false);
+
+    const w2 = 100;
+    DrawLabel("WebGL", x1, y1, w2, 16, g_tfjs_backend == "webgl");
+    DrawLabel("CPU", x1, y2, w2, 16, g_tfjs_backend == "cpu");
+
+    noStroke();
+    fill("black");
+    textAlign(LEFT, TOP);
+
+    fill("rgba(0,0,0," + this.GetAlpha() + ")");
+    text(this.info, this.x + PAD, this.y + this.h - (TEXT_SIZE+2)*2);
+
+    stroke(COLOR1);
+    strokeWeight(2);
+    switch (g_tfjs_use_webworker) {
+      case true:
+        line(x00+24, yc, x0-w1/2, y1);
+        switch (g_tfjs_backend) {
+          case "webgl":
+            line(x0+w1/2, y1, x1-w2/2, y1); break;
+          case "cpu":
+            line(x0+w1/2, y1, x1-w2/2, y2); break;
+          break;
+        }
+        break;
+      case false:
+        line(x00+24, yc, x0-w1/2, y2);
+        switch (g_tfjs_backend) {
+          case "webgl":
+            line(x0+w1/2, y2, x1-w2/2, y1); break;
+          case "cpu":
+            line(x0+w1/2, y2, x1-w2/2, y2); break;
+          break;
+        }
+        break;
+    }
+
+    switch (g_tfjs_backend) {
+      case "webgl":
+        line(x1+w2/2, y1, x10-w0/2, yc); break;
+      case "cpu":
+        line(x1+w2/2, y2, x10-w0/2, yc); break;
+      break;
+    }
+
+    noStroke();
+    textAlign(RIGHT, BOTTOM);
+    fill("#999");
+    text((this.info_millis / 1000).toFixed(1), this.x + this.w - PAD, this.y + this.h - PAD);
+
+    pop();
+  }
+
+  Update(millis) {
+    this.info_millis -= millis;
+    if (this.info_millis < 0) {
+      this.info_millis = 0;
+    }
+    switch (this.anim) {
+      case "show":
+        this.y = lerp(this.y, this.y1, 1-pow(0.9, millis/15));
+        if (abs(this.y - this.y1) < 1) {
+          this.y = this.y1;
+          this.anim = undefined;
+        }
+        break;
+      case "hide":
+        this.y = lerp(this.y, this.y0, 1-pow(0.9, millis/15));
+        if (abs(this.y - this.y0) < 1) {
+          this.y = this.y0;
+          this.anim = undefined;
+          this.visible = false;
+        }
+        break;
+    }
+  }
+
+  GetAlpha() {
+    const THRESH = 750;
+    if (this.info_millis >= THRESH) { return 1; }
+    else return this.info_millis / THRESH;
+  }
+}
+
+var g_fft_vis;
 var g_recording = false;
 //var g_rec_mfcc = [];
 //var graph_rec_mfcc;
 var graph_mfcc0, graph_diff;
 var g_moving_window_vis;
+var g_frameskip_vis;
+var g_runningmode_vis, g_stats4nerds;
 
 var soundReady = true;
 
@@ -632,10 +946,14 @@ var normalized = [];
 var currentPrediction = "";
 var rotation = 0.0;
 
+g_stats4nerds = new Stats4Nerds();
 let g_frame_count = 0;
 let g_last_draw_ms = 0;
 let g_input_audio_stats_viz = new AudioStatsViz();
 let g_downsp_audio_stats_viz = new AudioStatsViz();
+
+g_input_audio_stats_viz.SetParent(g_stats4nerds);
+g_downsp_audio_stats_viz.SetParent(g_stats4nerds);
 
 let temp0, temp1;
 let temp0array;
@@ -692,6 +1010,7 @@ function UpdateWeightMask(window_weights, next_pinyins) {
       "weight_mask": m
     });
   }
+  g_weight_mask = m;
 }
 function ResetWeightMask() {
   if (g_worker != undefined) {
@@ -730,28 +1049,33 @@ async function setup() {
   });
 
   createCanvas(640, 640);
-  frameRate(30);
+  // 注：在Firefox中录制的话，需要降低帧数
+  frameRate(FRAMERATE_NORMAL);
 
   graph_diff = createGraphics(512, 512);
-  g_loudness_vis = new LoudnessVis();
   g_fft_vis = new FFTVis();
+  g_fft_vis.SetParent(g_stats4nerds);
   g_moving_window_vis = new MovingWindowVis();
   g_moving_window_vis.x = 374;
-  g_moving_window_vis.y = 150;
+  g_moving_window_vis.y = 22;
+  g_moving_window_vis.SetParent(g_stats4nerds);
+
+  g_frameskip_vis = new FrameskipVis();
+  g_frameskip_vis.SetParent(g_stats4nerds);
 
   g_textarea = createElement("textarea", "");
   g_textarea.size(320, 50);
   g_textarea.position(32, STATUS_Y + 100)
   g_textarea.hide();
 
-  g_downsp_audio_stats_viz.x = 110;
+  g_downsp_audio_stats_viz.x = 102;
 
   // REC button
   g_btn_rec = new Button("REC");
   g_btn_rec.w = 220;
   g_btn_rec.h = 100;
-  g_btn_rec.pos.x = W0/2 - g_btn_rec.w/2;
-  g_btn_rec.pos.y = H0 - g_btn_rec.h - 12;
+  g_btn_rec.x = W0/2 - g_btn_rec.w/2;
+  g_btn_rec.y = H0   - g_btn_rec.h - 12;
   g_btn_rec.is_enabled = false;
   g_btn_rec.clicked = function() {
     g_recorderviz.StartRecording();
@@ -765,15 +1089,15 @@ async function setup() {
   g_btn_mic = new Button("Mic");
   g_btn_file = new Button("File");
 
-  g_btn_mic.pos.x = 16;
-  g_btn_mic.pos.y = 16;
+  g_btn_mic.x = 16;
+  g_btn_mic.y = 16;
   g_btn_mic.clicked = function() {
     SetupMicrophoneInput(512);
     g_btn_mic.is_enabled = false; g_btn_file.is_enabled = false;
     g_btn_rec.is_enabled = true;
   }
-  g_btn_file.pos.x = 80;
-  g_btn_file.pos.y = 16;
+  g_btn_file.x = 80;
+  g_btn_file.y = 16;
   g_btn_file.clicked = function() {
     g_audio_file_input.click();
     g_btn_mic.is_enabled = false; g_btn_file.is_enabled = false;
@@ -787,20 +1111,21 @@ async function setup() {
   g_btn_predict = new Button("Pre-\ndict");
 
   g_btn_load_model.w = 60;
-  g_btn_load_model.pos.x = 280;
-  g_btn_load_model.pos.y = 16;
+  g_btn_load_model.x = 280;
+  g_btn_load_model.y = 16;
   g_btn_load_model.clicked = async function() {
+    g_runningmode_vis.SetInfo("Attempt to load and initialize model with WebWorker");
     g_model = await LoadModel();
     g_btn_predict.is_enabled = true;
     g_btn_load_model.is_enabled = false;
   }
 
   g_btn_predict.w = 50;
-  g_btn_predict.pos.x = 360;
-  g_btn_predict.pos.y = 16;
+  g_btn_predict.x = 360;
+  g_btn_predict.y = 16;
   g_btn_predict.is_enabled = false;
   g_btn_predict.clicked = async function() {
-    if (g_worker) {
+    if (g_tfjs_use_webworker) {
       g_worker.postMessage({
         "tag": "Predict",
         "ffts": g_recorderviz.buffer.slice()
@@ -833,13 +1158,24 @@ async function setup() {
     }
   }
   g_buttons.push(g_btn_load_model);
-  g_buttons.push(g_btn_predict);
+  //g_buttons.push(g_btn_predict);
+
+  g_btn_statsfornerds = new Button("Stats 4\nnerds");
+  g_btn_statsfornerds.w = 80;
+  g_btn_statsfornerds.x = 360;
+  g_btn_statsfornerds.y = 16;
+  g_btn_statsfornerds.is_enabled = true;
+  g_btn_statsfornerds.clicked = async function() {
+    g_stats4nerds.Toggle();
+  }
+
+  g_buttons.push(g_btn_statsfornerds);
 
   // Demo data.
   let g_btn_demo_data = new Button("Demo\nData");
   g_btn_demo_data.w = 60;
-  g_btn_demo_data.pos.x = 148;
-  g_btn_demo_data.pos.y = 16;
+  g_btn_demo_data.x = 148;
+  g_btn_demo_data.y = 16;
   g_btn_demo_data.clicked = function() {
     g_recorderviz.buffer = TESTDATA;
     g_recorderviz.StopRecording();
@@ -847,48 +1183,48 @@ async function setup() {
   g_buttons.push(g_btn_demo_data);
 
   let btn_prev5 = new Button("-5");
-  btn_prev5.pos.x = 440;
+  btn_prev5.x = 440;
   btn_prev5.w = 34;
   btn_prev5.h = 50;
-  btn_prev5.pos.y = 400;
+  btn_prev5.y = 400;
   btn_prev5.clicked = function() {
     ModifyDataIdx(-5);
   }
   g_buttons.push(btn_prev5);
 
   let btn_next5 = new Button("+5");
-  btn_next5.pos.x = 440;
+  btn_next5.x = 440;
   btn_next5.w = 34;
   btn_next5.h = 50;
-  btn_next5.pos.y = 640;
+  btn_next5.y = 640;
   btn_next5.clicked = function() {
     ModifyDataIdx(5);
   }
   g_buttons.push(btn_next5);
 
   let btn_next = new Button(">");
-  btn_next.pos.x = 440;
+  btn_next.x = 440;
   btn_next.w = 34;
   btn_next.h = 80;
-  btn_next.pos.y = 550;
+  btn_next.y = 550;
   btn_next.clicked = function() {
     LoadNextDataset();
   }
   g_buttons.push(btn_next);
 
   let btn_prev = new Button("<");
-  btn_prev.pos.x = 440;
+  btn_prev.x = 440;
   btn_prev.w = 34;
   btn_prev.h = 80;
-  btn_prev.pos.y = 460;
+  btn_prev.y = 460;
   btn_prev.clicked = function() {
     LoadPrevDataset();
   }
   g_buttons.push(btn_prev);
 
   let btn_reset = new Button("R");
-  btn_reset.pos.x = 440;
-  btn_reset.pos.y = 240;
+  btn_reset.x = 440;
+  btn_reset.y = 240;
   btn_reset.w = 34;
   btn_reset.h = 35;
   btn_reset.clicked = function() {
@@ -896,25 +1232,57 @@ async function setup() {
   }
   g_buttons.push(btn_reset);
 
-  let btn_wgt_add = new Button("+");
-  btn_wgt_add.pos.x = 330;
-  btn_wgt_add.pos.y = 163;
-  btn_wgt_add.w = 32;
-  btn_wgt_add.h = 32;
-  btn_wgt_add.clicked = function() {
+  g_btn_wgt_add = new Button("+");
+  g_btn_wgt_add.x = 32;
+  g_btn_wgt_add.y = 42;
+  g_btn_wgt_add.w = 32;
+  g_btn_wgt_add.h = 24;
+  g_btn_wgt_add.border_style = 2;
+  g_btn_wgt_add.clicked = function() {
     g_moving_window_vis.W0 *= 2;
   }
-  g_buttons.push(btn_wgt_add);
+  g_btn_wgt_add.is_enabled = false;
+  g_btn_wgt_add.SetParent(g_moving_window_vis);
 
-  let btn_wgt_sub = new Button("-");
-  btn_wgt_sub.pos.x = 294;
-  btn_wgt_sub.pos.y = 163;
-  btn_wgt_sub.w = 32;
-  btn_wgt_sub.h = 32;
-  btn_wgt_sub.clicked = function() {
+  g_btn_wgt_sub = new Button("-");
+  g_btn_wgt_sub.x = 0;
+  g_btn_wgt_sub.y = 42;
+  g_btn_wgt_sub.w = 32;
+  g_btn_wgt_sub.h = 24;
+  g_btn_wgt_sub.border_style = 2;
+  g_btn_wgt_sub.clicked = function() {
     g_moving_window_vis.W0 /= 2;
   }
-  g_buttons.push(btn_wgt_sub);
+  g_btn_wgt_sub.is_enabled = false;
+  g_btn_wgt_sub.SetParent(g_moving_window_vis);
+
+  g_btn_frameskip_add = new Button("+");
+  g_btn_frameskip_add.x = 32;
+  g_btn_frameskip_add.y = 42;
+  g_btn_frameskip_add.w = 32;
+  g_btn_frameskip_add.h = 24;
+  g_btn_frameskip_add.border_style = 2;
+  g_btn_frameskip_add.clicked = function() {
+    g_frameskip_vis.IncrementFrameskip();
+  }
+  g_btn_frameskip_add.is_enabled = false;
+  g_btn_frameskip_add.SetParent(g_frameskip_vis);
+
+  g_btn_frameskip_sub = new Button("-");
+  g_btn_frameskip_sub.x = 0;
+  g_btn_frameskip_sub.y = 42;
+  g_btn_frameskip_sub.w = 32;
+  g_btn_frameskip_sub.h = 24;
+  g_btn_frameskip_sub.border_style = 2;
+  g_btn_frameskip_sub.clicked = function() {
+    g_frameskip_vis.DecrementFrameskip();
+  }
+  g_btn_frameskip_sub.is_enabled = false;
+  g_btn_frameskip_sub.SetParent(g_frameskip_vis);
+
+  g_runningmode_vis = new RunningModeVis();
+
+  g_animator = new Animator()
 
   SetupReadAlong();
 }
@@ -925,43 +1293,20 @@ function draw() {
   if (g_frame_count == 0) {
     g_recorderviz = new RecorderViz();
     g_pathfinder_viz = new PathfinderViz();
+    
+    g_pathfinder_viz.SetParent(g_stats4nerds);
   } else {
     delta_ms = (ms - g_last_draw_ms);
+    g_animator.Update(delta_ms);
   }
 
   background(255);
   textSize(12);
   push();
-
   scale(g_scale);
-
-  fill(0);
-  noStroke();
-  if (soundReady) {
-
-    //g_loudness_vis.Render(loudness.total);
-    g_fft_vis.Render();
-    textAlign(LEFT, TOP);
-    if (g_recording) {
-      fill(0, 0, 255);
-      noStroke();
-      text("REC " + g_rec_mfcc.length, 16, 16);
-    }
-  }
-
-  g_input_audio_stats_viz.Render();
-  g_downsp_audio_stats_viz.Render();
-  g_recorderviz.Render();
-  g_pathfinder_viz.Render();
-  g_moving_window_vis.Render();
 
   const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
   noFill();
-  stroke(32);
-  const l = 10 / g_scale;
-  line(mx - l, my, mx + l, my);
-  line(mx, my - l, mx, my + l);
-
   // 放在最底层
   RenderReadAlong(delta_ms);
 
@@ -981,12 +1326,33 @@ function draw() {
     g_aligner.is_hovered = false;
   }
 
+
+  // ====================================================================
+  // Begin stats for nerds
+  fill(0);
+  noStroke();
+  if (soundReady) { }
+
   // 触摸单独在这里另外处理
-
-
   g_buttons.forEach((b) => {
     b.Render();
   })
+
+  g_recorderviz.Render();
+  
+  g_stats4nerds.Render();
+
+  // ====================================================================
+
+  g_runningmode_vis.Update(delta_ms);
+
+  // crosshair
+  noFill();
+  stroke(32);
+  const l = 10 / g_scale;
+  line(mx - l, my, mx + l, my);
+  line(mx, my - l, mx, my + l);
+
 
   pop();
 
