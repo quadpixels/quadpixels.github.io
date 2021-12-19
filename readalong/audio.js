@@ -82,24 +82,30 @@ async function CreateMyProcessor(ctx, options) {
   myProcessor.port.onmessage = ((event) => {
     const ms = millis();
     SoundDataCallbackMyAnalyzer(event.data.buffer, event.data.downsampled, event.data.fft_frames);
-    if (event.data.fft_frames) {
-      event.data.fft_frames.forEach((f) => {
-        const real = new Float32Array(400);
-        const imag = new Float32Array(400);
-        for (let i=0; i<400; i++) {
-          real[i] = f[i];
-        }
+    // if (event.data.fft_frames) {
+    //   event.data.fft_frames.forEach((f) => {
+    //     const real = new Float32Array(400);
+    //     const imag = new Float32Array(400);
+    //     for (let i=0; i<400; i++) {
+    //       real[i] = f[i];
+    //     }
         
-        // fft.js
-        transform(real, imag);
+    //     // fft.js
+    //     transform(real, imag);
 
-        let spec = [];
-        for (let i=0; i<400; i++) {
-          const re = real[i], im = imag[i];
-          const mag = Math.sqrt(re*re + im*im);
-          spec.push(mag);
-        }
-        temp0 = f
+    //     let spec = [];
+    //     for (let i=0; i<400; i++) {
+    //       const re = real[i], im = imag[i];
+    //       const mag = Math.sqrt(re*re + im*im);
+    //       spec.push(mag);
+    //     }
+    //     temp0 = f
+    //     g_fft_vis.AddOneEntry(spec);
+    //     g_recorderviz.AddSpectrumIfRecording(spec.slice(0, 200), ms);
+    //   });
+    // }
+    if (event.data.fft_spectrums) {
+      event.data.fft_spectrums.forEach((spec) => {
         g_fft_vis.AddOneEntry(spec);
         g_recorderviz.AddSpectrumIfRecording(spec.slice(0, 200), ms);
       });
