@@ -106,8 +106,10 @@ onmessage = async function(event) {
     this.postMessage({
       "PredictionTime": (ms1-ms0),
       "DecodeTime": (ms2-ms1),
-      "Serial": event.serial,
-      "Decoded": out
+      "serial": event.data.serial,
+      "Decoded": out,
+      "timestamp": event.data.timestamp,  // 本次预测的数据包的时间戳
+      "decode_timestamp": blah[1], // 逐字时间戳
     });
   } else if (event.data.tag == "weight_mask") {
     weight_mask = event.data.weight_mask;
@@ -130,10 +132,14 @@ onmessage = async function(event) {
       out = out + PINYIN_LIST[x] + " "
     });
     const ms1 = millis();
+
     this.postMessage({
       "PredictionTime": event.data.predictionTime,
       "DecodeTime": (ms1-ms0),
-      "Decoded": out
+      "Decoded": out,
+      "serial": event.data.serial,
+      "timestamp": event.data.timestamp,  // 本次预测的数据包的时间戳
+      "decode_timestamp": blah[1].slice(), // 逐次时间戳
     });
   }
 }

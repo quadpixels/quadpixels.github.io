@@ -110,6 +110,11 @@ async function CreateMyProcessor(ctx, options) {
         g_recorderviz.AddSpectrumIfRecording(spec.slice(0, 200), ms);
       });
     }
+    if (event.data.energy_frames) {
+      event.data.energy_frames.forEach((en) => {
+        g_recorderviz.AddEnergyReading(en);
+      });
+    }
   });
   return myProcessor;
 }

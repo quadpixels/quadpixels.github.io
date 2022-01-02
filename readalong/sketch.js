@@ -21,7 +21,7 @@ let g_tfjs_use_webworker = undefined;
 var g_hovered_button = undefined;
 
 // UI元素的位置
-const STATS4NERDS_POS = [ 1, -220 ];
+const STATS4NERDS_POS = [ -220, 40 ];
 const RUNNINGMODEVIS_POS = [ 10, 70 ];
 
 // 是否只有按住REC时才录音
@@ -67,7 +67,9 @@ function OnWindowResize() {
       g_scale = 1;
     }
     
-    resizeCanvas(W, H);
+    if (prevW != W || prevH != H) {
+      resizeCanvas(W, H);
+    }
     
     prevW = W; prevH = H;
     g_dirty += 2;
@@ -77,6 +79,7 @@ function OnWindowResize() {
 var g_btn_rec, g_btn_mic, g_btn_file, g_btn_demo_data;
 var g_btn_load_model, g_btn_predict;
 var g_btn_wgt_add, g_btn_wgt_sub, g_btn_frameskip_add, g_btn_frameskip_sub;
+var g_btn_puzzle_mode;
 
 function VerticalLayout() {
 
@@ -129,6 +132,10 @@ class MyStuff {
       if (p == undefined) return false;
       else return p.IsHidden();
     }
+  }
+
+  Hover(mx, my) {
+
   }
 }
 
@@ -300,12 +307,24 @@ class RecorderViz extends MyStuff {
     this.px_per_samp = 1;  // 1 sample = 1 px
 
     this.window_offset = 0;
-    this.window_delta = 25;
+    this.window_delta = 50;
     this.window_width = 100;
+
+    this.recog_status = [];
+    this.recog_decodes = [];
+    this.serial = 0;
+    this.start_serial = 0; // 此次StartRecording时的serial
+
+    this.draw_stat = false;  // 不写状态文字
+    this.draw_fft = false;   // 不画FFT
+    this.draw_energy = true; // 只画能量图
   }
 
   Clear() {
     this.buffer = [];
+    this.energy_readings = [];
+    this.recog_status = [];
+    this.recog_decodes = [];
     this.duration_ms = 0;
     if (this.graph != undefined)
       this.graph.clear();
@@ -315,8 +334,12 @@ class RecorderViz extends MyStuff {
     this.graph.clear();
     this.is_recording = true;
     this.buffer = [];
+    this.energy_readings = [];
+    this.recog_decodes = [];
+    this.recog_status = [];
     this.start_record_ms = millis();
     this.window_offset = 0;
+    this.start_serial = this.serial;
     g_audio_context.resume();
     frameRate(FRAMERATE_RECORDING);
   }
@@ -378,25 +401,39 @@ class RecorderViz extends MyStuff {
     if (!this.ShouldAddFFT()) {
       return;
     }
-    this.RenderOneLineOfFFT(fft, this.buffer.length);
+    if (this.draw_fft) {
+      this.RenderOneLineOfFFT(fft, this.buffer.length);
+    }
     this.buffer.push(fft);
+  }
+
+  AddEnergyReading(en) {
+    this.energy_readings.push(en);
   }
 
   async DoPrediction() {
     // 每次画图的时候进行预测或者提交预测请求
     if (this.window_width + this.window_offset <= this.buffer.length) {
+      const serial = this.serial; ++this.serial;
       let ffts = this.buffer.slice(this.window_offset, 
                                     this.window_offset + this.window_width);
+      // 一帧FFT为0.01秒（即10毫秒或160个采样点@16000Hz），所以乘以10
+      const timestamp = this.start_record_ms + this.window_offset * 10;
       if (ffts.length > 0) {
         if (g_tfjs_use_webworker == true) {
           g_worker.postMessage({
+            "timestamp": timestamp,
             "tag": "Predict",
-            "ffts": ffts
+            "ffts": ffts,
+            "serial": serial,
           });
         } else {
           const ms0 = millis();
           const temp0 = await DoPrediction(ffts);
           const ms1 = millis();
+
+          // 1:已经预测完了
+          this.recog_status.push([]);
 
           temp0array = []; // for ctc
           const T = temp0.shape[1];
@@ -418,9 +455,11 @@ class RecorderViz extends MyStuff {
           }
 
           g_worker.postMessage({
+            "timestamp": timestamp,
             "tag": "decode",
             "S": temp0.shape[2],
             "temp0array": temp0array,
+            "serial": serial,
           });
         }
       }
@@ -440,45 +479,98 @@ class RecorderViz extends MyStuff {
 
     fill(122);
 
-    txt = txt + " | Window:[" + this.window_offset + "," + 
-          (this.window_offset + this.window_width) + "] |"
-
-    dx = textWidth(txt) + 3;
-
-    text(txt, 0, 0);
-
-    if (!this.is_recording) {
-      fill(122);
-      text("Not recording", dx, 0);
-    } else {
-      fill("#F88");
-      this.duration_ms = millis() - this.start_record_ms;
-      text("Recording", dx, 0);
-    }
-
     noFill();
     stroke(32);
     const h = this.graph.height;
-    let dy = 15;
+    let dy = 0;
     const w = this.buffer.length;
     const w1 = w + this.window_width;
+
+    if (this.draw_stat) {
+      txt = txt + " | Window:[" + this.window_offset + "," + 
+            (this.window_offset + this.window_width) + "] |"
+      dx = textWidth(txt) + 3;
+      text(txt, 0, dy);
+      if (!this.is_recording) {
+        fill(122);
+        text("Not recording", dx, dy);
+      } else {
+        fill("#F88");
+        this.duration_ms = millis() - this.start_record_ms;
+        text("Recording", dx, dy);
+      }
+    }
 
     if (w1 > W0) {
       scale(W0/w1, 1);
     }
 
-    image(this.graph, 0, dy);
-    noFill();
-    stroke("#33f");
-    const dx1 = this.window_offset;
-    rect(dx1, dy, this.window_width, h);
-    stroke(32);
-    rect(0, dy, w, h);
+    // Draw pred status
+    // for (let i=0; i<this.recog_status.length; i++) {
+    //   const dx0 = this.window_delta * i, dx1 = dx0 + this.window_delta;
+    //   const dy0 = dy, dy1 = dy + 4;
+    //   const rs = this.recog_status[i];
+    //   if (rs == 0) {
+    //     fill(255);
+    //   } else if (rs == 1) {
+    //     fill("#8FF");
+    //   } else if (rs == 2) {
+    //     fill("#8C8");
+    //   }
+    //   rect(dx0, dy0, dx1-dx0, dy1-dy0);
+    // }
+    // dy += 6;
+
+    strokeWeight(3);
+    this.recog_decodes.forEach((ts) => {
+      point(ts, dy);
+    })
+    strokeWeight(1);
+
+    if (this.draw_fft) {
+      image(this.graph, 0, dy+8);
+      noFill();
+      stroke("#33f");
+      const dx1 = this.window_offset;
+      rect(dx1, dy+8, this.window_width, h);
+      stroke(32);
+      rect(0, dy+7, w, h);
+      dy += h;
+    }
+
+    if (this.draw_energy) {
+      let lx = 0, ly = dy + 20;
+      const step = 4;
+      for (let i=0; i<this.energy_readings.length; i += step) {
+        const mag = this.myMap(this.energy_readings[i]*32768);
+        const dy0 = ly+16*mag;
+        const dy1 = ly-16*mag;
+        lx += step;
+        line(lx, dy0, lx, dy1);
+      }
+      dy += 36;
+    }
 
     pop();
 
     // 在绘图完成时，进行预测
     this.DoPrediction();
+  }
+
+  // timestamps为该输入内的 timestamp
+  OnDecodedAndAligned(serial, decoded, timestamps) {
+    let offset = serial - this.start_serial;
+    if (offset < this.recog_status.length) {
+      this.recog_status[offset] = 2;
+    }
+
+    console.log(timestamps)
+    // 这一个预测输入 在这一轮录音中的开始时间戳
+    offset = (serial - this.start_serial) * this.window_delta;
+    timestamps.forEach((t) => {
+      // 因为CTC风格中 一列 是 10ms，而此处 画图时 1象素=1ms，所以要乘以10
+      this.recog_decodes.push(offset + t * 10);
+    });
   }
 }
 
@@ -495,7 +587,7 @@ class Button extends MyStuff {
     this.clicked = function() {}
     this.released = function() {}
     this.txt = txt;
-    this.border_style = 1;
+    this.border_style = 2;
   }
   do_Render() {
     if (!this.is_enabled) {
@@ -546,7 +638,7 @@ class Button extends MyStuff {
     text(this.txt, w/2, h/2);
     pop();
   }
-  Hover(mx, my) {
+  do_Hover(mx, my) {
     if (this.IsHidden()) {
       this.is_hovered = false;
     }
@@ -580,7 +672,7 @@ class PathfinderViz extends MyStuff {
   constructor() {
     super();
     this.x = 16;
-    this.y = 30;
+    this.y = 22;
 
     this.py2idx = {};
 
@@ -601,17 +693,21 @@ class PathfinderViz extends MyStuff {
     fill(32);
     textAlign(LEFT, TOP);
 
+    
+    fill(128);
+    text(parseInt(width) + "x" + parseInt(height) + "x" + g_scale.toFixed(2) + " " + windowWidth + "x" + windowHeight, 0, 0);
+
     fill(128);
     if (g_tfjs_version == undefined) {
-      text("tfjs not loaded", 0, 0);
+      text("tfjs not loaded", 0, TEXT_SIZE);
     }
-    text(g_tfjs_version, 0, 0);
+    text(g_tfjs_version, 0, TEXT_SIZE);
     
     fill(32);
     
-    text("Result: " + this.result, 0, TEXT_SIZE);
-    text("Predict time: " + this.predict_time + " ms", 0, TEXT_SIZE*2);
-    text("Decode time: " + this.decode_time + " ms", 0, TEXT_SIZE*3);
+    text("Result: " + this.result, 0, TEXT_SIZE*2);
+    text("Predict time: " + this.predict_time + " ms", 0, TEXT_SIZE*3);
+    text("Decode time: " + this.decode_time + " ms", 0, TEXT_SIZE*4);
 
     pop();
   }
@@ -676,7 +772,7 @@ class PathfinderViz extends MyStuff {
 class MovingWindowVis extends MyStuff {
   constructor() {
     super()
-    this.W0 = 40;
+    this.W0 = 640;
     this.w = 80;
     this.h = 24;
     this.x = 0; this.y = 0;
@@ -698,7 +794,6 @@ class MovingWindowVis extends MyStuff {
       const y0 = map(this.weights[i], 1, 0, 0, this.h) + TEXT_SIZE;
       const y1 = this.h + TEXT_SIZE;
       rect(x0, y0, x1-x0, y1-y0);
-      //console.log(x0 + " " + x1 + " " + y0 + " " + y1)
     }
     pop();
   }
@@ -769,8 +864,8 @@ class Stats4Nerds extends MyStuff {
   constructor() {
     super();
     
-    this.x = STATS4NERDS_POS[0];
-    this.y = STATS4NERDS_POS[1];
+    this.x = 0;
+    this.y = STATS4NERDS_POS[0];
     this.w = 476;
     this.h = 170;
     this.is_hidden = false;
@@ -779,13 +874,16 @@ class Stats4Nerds extends MyStuff {
     fill("rgba(255,255,255,0.95)");
     stroke(32);
     DrawBorderStyle2(0, 0, this.w, this.h);
+    noStroke();
+    fill(32);
+    textAlign(CENTER, TOP);
+    text("Stats for nerds #1", this.w/2, 5)
   }
 
   Hide() {
-    const Y0 = -220, Y1 = 70;
     g_btn_statsfornerds.is_enabled = false;
-    g_animator.Animate(this, "y", undefined, [Y1, Y0], [0, 300], ()=>{
-      this.y = Y0;
+    g_animator.Animate(this, "y", undefined, [STATS4NERDS_POS[1], STATS4NERDS_POS[0]], [0, 300], ()=>{
+      this.y = STATS4NERDS_POS[0];
       this.is_hiden = true;
       g_btn_statsfornerds.is_enabled = true;
     });
@@ -795,8 +893,8 @@ class Stats4Nerds extends MyStuff {
     const Y0 = -220, Y1 = 70;
     this.is_hidden = false;
     g_btn_statsfornerds.is_enabled = false;
-    g_animator.Animate(this, "y", undefined, [Y0, Y1], [0, 300], ()=>{
-      this.y = Y1;
+    g_animator.Animate(this, "y", undefined, [STATS4NERDS_POS[0], STATS4NERDS_POS[1]], [0, 300], ()=>{
+      this.y = STATS4NERDS_POS[1];
       this.is_hiden = false;
       g_btn_statsfornerds.is_enabled = true;
     });
@@ -804,8 +902,7 @@ class Stats4Nerds extends MyStuff {
 
   Toggle() {
     g_animator.FinishAllPendingAnimations();
-    const Y0 = -220, Y1 = 70;
-    if (this.y == Y1) {
+    if (this.y == STATS4NERDS_POS[1]) {
       this.Hide();
     } else {
       this.Show();
@@ -980,6 +1077,7 @@ function OnPredictionResult(res) {
   const d = res.data;
   g_pathfinder_viz.SetResult(d.Decoded, d.PredictionTime, d.DecodeTime);
   OnNewPinyins(d.Decoded.split(" "));
+  g_recorderviz.OnDecodedAndAligned(d.serial, d.Decoded, d.decode_timestamp)
 }
 
 // For moving window stuff
@@ -991,6 +1089,7 @@ function OnUpdateWeightMask() {
                    g_aligner.GetNextPinyins(N));
 }
 function UpdateWeightMask(window_weights, next_pinyins) {
+  if (next_pinyins == undefined) return;
   let m = [];
   const W0 = g_moving_window_vis.W0;
   for (let i=0; i<PINYIN_LIST.length; i++) {
@@ -1088,6 +1187,7 @@ async function setup() {
   g_btn_rec.x = W0/2 - g_btn_rec.w/2;
   g_btn_rec.y = H0   - g_btn_rec.h - 12;
   g_btn_rec.is_enabled = false;
+  g_btn_rec.border_style = 1;
   g_btn_rec.clicked = function() {
     g_recorderviz.StartRecording();
   }
@@ -1114,8 +1214,9 @@ async function setup() {
     g_btn_mic.is_enabled = false; g_btn_file.is_enabled = false;
     g_btn_rec.is_enabled = true;
   }
-  g_buttons.push(g_btn_mic);
-  g_buttons.push(g_btn_file);
+  // 这两个先不显示了
+  //g_buttons.push(g_btn_mic);
+  //g_buttons.push(g_btn_file);
 
   // Load model & "Predict"
   g_btn_load_model = new Button("Load\nModel");
@@ -1168,13 +1269,15 @@ async function setup() {
       console.log(out);
     }
   }
-  g_buttons.push(g_btn_load_model);
+  // 这几个先不显示
+  //g_buttons.push(g_btn_load_model);
   //g_buttons.push(g_btn_predict);
 
-  g_btn_statsfornerds = new Button("Stats 4\nnerds");
-  g_btn_statsfornerds.w = 80;
-  g_btn_statsfornerds.x = 360;
-  g_btn_statsfornerds.y = 16;
+  g_btn_statsfornerds = new Button("？");
+  g_btn_statsfornerds.w = 32;
+  g_btn_statsfornerds.h = 32;
+  g_btn_statsfornerds.x = 440;
+  g_btn_statsfornerds.y = 4;
   g_btn_statsfornerds.is_enabled = true;
   g_btn_statsfornerds.clicked = async function() {
     g_stats4nerds.Toggle();
@@ -1191,7 +1294,7 @@ async function setup() {
     g_recorderviz.buffer = TESTDATA;
     g_recorderviz.StopRecording();
   }
-  g_buttons.push(g_btn_demo_data);
+  //g_buttons.push(g_btn_demo_data);
 
   let btn_prev5 = new Button("-5");
   btn_prev5.x = 440;
@@ -1291,6 +1394,17 @@ async function setup() {
   g_btn_frameskip_sub.is_enabled = false;
   g_btn_frameskip_sub.SetParent(g_frameskip_vis);
 
+  g_btn_puzzle_mode = new Button("謎之\n模式");
+  g_btn_puzzle_mode.x = 420;
+  g_btn_puzzle_mode.y = 770;
+  g_btn_puzzle_mode.w = 50;
+  g_btn_puzzle_mode.h = 50;
+  g_btn_puzzle_mode.clicked = function() {
+    g_readalong_layout.SwitchMode();
+    g_aligner.Update(0, 0); // 跳过跟踪动画
+  }
+  g_buttons.push(g_btn_puzzle_mode);
+
   g_runningmode_vis = new RunningModeVis();
 
   g_animator = new Animator()
@@ -1304,6 +1418,8 @@ async function setup() {
   setTimeout(() => {
     g_btn_load_model.clicked();
   }, 1000);
+
+  SetupPuzzle();
 }
 
 function draw() {
@@ -1324,6 +1440,9 @@ function draw() {
   push();
   scale(g_scale);
 
+  if (g_readalong_layout.ShouldDrawPuzzle())
+    DrawPuzzle();
+
   const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
   noFill();
   // 放在最底层
@@ -1333,7 +1452,7 @@ function draw() {
   g_hovered_button = undefined;
 
   g_buttons.forEach((b) => {
-    b.Hover(mx, my);
+    b.do_Hover(mx, my);
     if (b.is_hovered) {
       has_hovered_buttons = true;
       g_hovered_button = b;
@@ -1372,7 +1491,6 @@ function draw() {
   line(mx - l, my, mx + l, my);
   line(mx, my - l, mx, my + l);
 
-
   pop();
 
   push();
@@ -1381,8 +1499,8 @@ function draw() {
   textAlign(LEFT, TOP);
   text(parseInt(width) + "x" + parseInt(height) + "x" + g_scale.toFixed(2) + " " + windowWidth + "x" + windowHeight, 1, 1);
 
-  pop();  // end scale
 
+  pop();  // end scale
 
   g_frame_count ++;
   g_last_draw_ms = ms;

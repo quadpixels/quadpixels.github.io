@@ -325,22 +325,27 @@ class MyProcessor extends AudioWorkletProcessor {
 
     let fft_frames = [];
     let fft_spectrums = [];
+    let energy_frames = [];
     {
       const q = this.downsampled_q;
       const w = this.fft_window_size;
 
       while (this.RingBufferSize() > this.next_fft_sampsize) {
         const windowed = this.GetNEntries(this.next_fft_sampsize - w, w);
+        let energy_sum = 0;
         for (let i=0; i<w; i++) {
           let s = windowed[i];
           s *= this.hanning_window[i];
           // Also convert to int16
           if (s > 1) s = 1;
           if (s < -1) s = -1;
+          energy_sum += s * s;
           s = parseInt(32767 * s);
           windowed[i] = s;
         }
+        energy_sum /= w;
         fft_frames.push(windowed);
+        energy_frames.push(energy_sum);
 
         // Calculate FFT here, don't do it in the main thd?
         const real = new Float32Array(w);
@@ -369,6 +374,7 @@ class MyProcessor extends AudioWorkletProcessor {
     if (fft_frames.length > 0) {
       msg["fft_frames"]    = fft_frames;
       msg["fft_spectrums"] = fft_spectrums;
+      msg["energy_frames"] = energy_frames;
     }
     this.port.postMessage(msg);
     return true;

@@ -11,27 +11,27 @@ function DrawBorderStyle1(x, y, w, h) {
   // 四个角
   beginShape();
 
-  vertex(r1, 0);
+  vertex(x+r1, y);
   // 左上角
   P.forEach((p) => {
-    vertex(p[0], p[1]);
+    vertex(x+p[0], y+p[1]);
   });
 
-  vertex(0, h-r1);
+  vertex(x, y+h-r1);
   // 左下角
   P.forEach((p) => {
-    vertex(p[1], h-p[0]);
+    vertex(x+p[1], y+h-p[0]);
   })
 
   // 右下角
-  vertex(w-r1, h);
+  vertex(x+w-r1, y+h);
   P.forEach((p) => {
-    vertex(w-p[0], h-p[1]);
+    vertex(x+w-p[0], y+h-p[1]);
   })
 
-  vertex(w, r1);
+  vertex(x+w, y+r1);
   P.forEach((p) => {
-    vertex(w-p[1], p[0]);
+    vertex(x+w-p[1], y+p[0]);
   })
 
   endShape(CLOSE);

@@ -73,12 +73,12 @@ class Beam {
       return false;
     }
   }
-  AddEntry(key, value) {
+  AddEntry(key, timestamps, value) {
     if (!USE_HASH) {
-      this.entries.push([key, value]);
+      this.entries.push([key, timestamps, value]);
       this.key2idx[key.toString()] = this.entries.length-1;
     } else {
-      this.entries.push([key, value]);
+      this.entries.push([key, timestamps, value]);
       const h = MyHash(key);
       const idx = this.entries.length - 1;
       if (!(h in this.hash2idx)) {
@@ -93,7 +93,7 @@ class Beam {
       const k = prefix.toString();
       let idx = this.key2idx[k];
       if (idx != undefined) {
-        return this.entries[idx][1];
+        return this.entries[idx][2];
       }
       else return [NEG_INF, NEG_INF];
     } else {
@@ -103,22 +103,22 @@ class Beam {
         for (let i=0; i<hs.length; i++) {
           const ik = hs[i];
           if (this.KeyEq(ik[0], prefix)) {
-            return this.entries[ik[1]][1];
+            return this.entries[ik[1]][2];
           }
         }
       }
       return [NEG_INF, NEG_INF];
     }
   }
-  Set(prefix, value) {
+  Set(prefix, timestamps, value) {
     if (!USE_HASH) {
       const k = prefix.toString();
       let idx = this.key2idx[k];
       if (idx != undefined) {
-        this.entries[idx][1] = value;
+        this.entries[idx][2] = value;
       }
       else
-        this.AddEntry(prefix.slice(), value);
+        this.AddEntry(prefix.slice(), timestamps.slice(), value);
     } else {
       const h = MyHash(prefix);
       let modified = false;
@@ -127,13 +127,13 @@ class Beam {
         for (let i=0; i<hs.length; i++) {
           const ik = hs[i];
           if (this.KeyEq(ik[0], prefix)) {
-            this.entries[ik[1]][1] = value;
+            this.entries[ik[1]][2] = value;
             modified = true;
           }
         }
       }
       if (!modified) {
-        this.AddEntry(prefix.slice(), value);
+        this.AddEntry(prefix.slice(), timestamps.slice(), value);
       }
     }
   }
@@ -158,7 +158,7 @@ function Decode(probs, beam_size, blank, frameskip=0) {
   }
 
   let beam = new Beam();
-  beam.AddEntry([], [0, NEG_INF]);
+  beam.AddEntry([], [], [0, NEG_INF]);
 
   for (let t=0; t<T; t+=(1+frameskip)) {
     let next_beam = new Beam();
@@ -176,14 +176,15 @@ function Decode(probs, beam_size, blank, frameskip=0) {
       for (let i=0; i<beam.entries.length; i++) {
         const entry = beam.entries[i];
         const prefix = entry[0];
-        const p_b = entry[1][0];
-        const p_nb = entry[1][1];
+        const timestamps = entry[1];
+        const p_b = entry[2][0];
+        const p_nb = entry[2][1];
 
         if (s == blank) {
           const x = next_beam.Get(prefix);
           let n_p_b = x[0], n_p_nb = x[1];
           n_p_b = Logsumexp([n_p_b, p_b+p, p_nb+p]);
-          next_beam.Set(prefix, [n_p_b, n_p_nb]);
+          next_beam.Set(prefix, timestamps, [n_p_b, n_p_nb]);
           continue;
         }
 
@@ -193,6 +194,7 @@ function Decode(probs, beam_size, blank, frameskip=0) {
         }
 
         let new_prefix = prefix.slice().concat([s]);
+        let new_timestamps = timestamps.slice().concat([t]);
         let x = next_beam.Get(new_prefix);
         let n_p_b = x[0], n_p_nb = x[1];
         let n_p_nb0 = n_p_nb;
@@ -202,13 +204,13 @@ function Decode(probs, beam_size, blank, frameskip=0) {
           n_p_nb = Logsumexp([n_p_nb, p_b+p]);
         }
 
-        next_beam.Set(new_prefix, [n_p_b, n_p_nb]);
+        next_beam.Set(new_prefix, new_timestamps, [n_p_b, n_p_nb]);
 
         if (s == end_t) {
           x = next_beam.Get(prefix);
           n_p_b = x[0]; n_p_nb = x[1];
           n_p_nb = Logsumexp([n_p_nb, p_nb + p]);
-          next_beam.Set(prefix, [n_p_b, n_p_nb]);
+          next_beam.Set(prefix, timestamps, [n_p_b, n_p_nb]);
         }
       }
     }
@@ -216,12 +218,12 @@ function Decode(probs, beam_size, blank, frameskip=0) {
     beam.entries = next_beam.entries.slice();
 
     beam.entries.sort((a, b) => {
-      const lspa = Logsumexp(a[1]),
-            lspb = Logsumexp(b[1]);
+      const lspa = Logsumexp(a[2]),
+            lspb = Logsumexp(b[2]);
       return lspb - lspa;
     });
     beam.entries = beam.entries.slice(0, beam_size);
   }
-  return [beam.entries[0][0], -Logsumexp(beam.entries[0][1])]
+  return [beam.entries[0][0], beam.entries[0][1], -Logsumexp(beam.entries[0][2])]
 }
 

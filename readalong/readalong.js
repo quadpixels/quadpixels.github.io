@@ -2,7 +2,7 @@ const PROBE_RANGE0 = 4, PROBE_INCREMENT0 = 2;
 
 class Aligner {
   constructor() {
-    this.w = 478; this.h = 480;
+    this.w = 478; this.h = 640;
     this.Reset();
     this.text_size = 28;
   }
@@ -11,17 +11,36 @@ class Aligner {
     this.text_size = text_size;
     this.title = title;
     this.data = data.slice();
+    this.puzzle_events = [];
     this.line_idx = 0; // 第几行
+    this.prev_line_idx = 0;
     
     this.char_idx   = 0; // 第几个字，可能与拼音有出入 
     this.pinyin_idx = 0; // 第几个拼音
-    
+
+    console.log(this.data)
     if (data.length > 0) {
-      for (let i=0; i<data.length; i++) {
-        data[i][1] = data[i][1].split(" ");
+      for (let i=0; i<this.data.length; i++) {
+        this.data[i][1] = this.data[i][1].slice(); // deep copy
+      }
+      for (let i=0; i<this.data.length; i++) {
+        if (typeof(this.data[i][1]) == "string") { // 为什么这个会持续
+          this.data[i][1] = this.data[i][1].split(" ");
+        }
+        this.puzzle_events.push([]);
       }
     }
     OnUpdateWeightMask();
+  }
+
+
+  SpawnPuzzleEventLabels(num_steps) {
+
+    for (let i=0; i<num_steps; i++) {
+      const data_idx = parseInt(map(i+1, 0, num_steps, 0, this.data.length-1));
+      console.log(data_idx);
+      this.puzzle_events[data_idx].push("※");
+    }
   }
   
   static PUNCT = new Set(['，', '。', '；']);
@@ -54,6 +73,7 @@ class Aligner {
   GetNextPinyins(n) {
     let ret = [];
     let l = this.line_idx, c = this.char_idx;
+    if (l >= this.data.length) return undefined;
     for (let i=0; i<n; i++) {
       ret.push(this.data[l][1][c]);
       c++;
@@ -68,13 +88,6 @@ class Aligner {
   Render() {
     push();
     noStroke();
-    fill(COLOR0);
-    //rect(g_readalong_x, g_readalong_y, this.w, this.h);
-    textAlign(RIGHT, TOP);
-    textSize(20);
-    text("第" + (1+g_data_idx) + "/" + DATA.length + "篇\n" + g_aligner.title,
-      480, g_readalong_y);
-
 
     fill(0);
     
@@ -84,12 +97,35 @@ class Aligner {
     textFont('KaiTi');
     
     const translate_y = -this.GetPanY();
-    const margin = 64;
+    const margin = 32;
 
-    let y = g_readalong_y + translate_y, x = g_readalong_x;
+    // 高亮当前行
+    const ly = g_readalong_layout.y, lh = g_readalong_layout.h;
+    let hl_y0 = ly + translate_y + TEXT_SIZE*1.2 * this.line_idx;
+    let hl_y1 = hl_y0 + TEXT_SIZE * 1.2;
+    hl_y0 = min(hl_y0, ly+lh); hl_y1 = min(hl_y1, ly+lh);
+    hl_y0 = max(hl_y0, ly)   ; hl_y1 = max(hl_y1, ly);
+    let hl_x = g_readalong_layout.x;
+    fill(220);
+    if (hl_y1 > ly && hl_y0 < lh+ly) {
+      rect(hl_x, hl_y0, this.w, hl_y1-hl_y0);
+    }
+
+    let y = g_readalong_layout.y + translate_y, x = g_readalong_layout.x;
     for (let i=0; i<this.data.length; i++) {
       const line = this.data[i][0];
       
+        
+      let alpha = 255, c0, c;
+      const ly = g_readalong_layout.y, lh = g_readalong_layout.h;
+      const y1_disappear = ly+lh-TEXT_SIZE*1.2;
+      if (y < ly+margin) {
+        alpha = map(y, ly+margin, ly, 255, 0);
+      } else if (y > y1_disappear-margin) {
+        alpha = map(y, y1_disappear-margin, y1_disappear,
+          255, 0);
+      }
+
       let dx = 0, pidx = 0; // 拼音idx
       for (let cidx = 0; cidx < line.length; cidx ++) {
         const ch = line[cidx];
@@ -116,17 +152,6 @@ class Aligner {
           }
           pidx ++;
         }
-        
-        let alpha = 255, c0, c;
-        if (y < g_readalong_y) {
-          alpha =map(y, g_readalong_y, g_readalong_y-margin, 255, 16);
-        } else if (y > g_readalong_y + this.h) {
-          alpha = map(y, g_readalong_y + this.h, g_readalong_y + this.h + margin,
-            255, 16);
-        }
-
-        // 要是超出视野的话就用最低alpha值
-        alpha = constrain(alpha, 16, 255);
 
         c0 = color(128, 128, 128, alpha), c = c0;
         if (done) {
@@ -144,9 +169,41 @@ class Aligner {
           text(ch, dx+x, y);
         }
       }
+
+      const e = this.puzzle_events[i];
+      if (e.length > 0) {
+        fill(color(192,192,244,alpha));
+        this.puzzle_events[i].forEach((elt) => {
+          dx += textWidth(elt);
+          text(elt, dx+x, y);
+        })
+      }
       
       y += TEXT_SIZE*1.2;
     }
+
+    textSize(20);
+    const dy = g_readalong_layout.title_y;
+    let t = "第" + (1+g_data_idx) + "/" + DATA.length + "篇 " + g_aligner.title
+    const sp = t.split("\n");
+    let tw = 12;
+    sp.forEach((line) => {
+      tw = max(tw, textWidth(line)+20);
+    })
+    let nlines = sp.length
+    
+    
+    let th = nlines * 23 + 3;
+    stroke(32);
+    fill("rgba(255,255,255,0.9)")
+    DrawBorderStyle1(240-tw/2, dy, tw, th);
+
+    noStroke();
+    fill(COLOR0);
+    //rect(g_readalong_layout.x, g_readalong_layout.y, this.w, this.h);
+    textAlign(CENTER, TOP);
+    text(t, 240, dy+2);
+
     pop();
   }
   
@@ -268,7 +325,7 @@ class Aligner {
     let PROBE_RANGE = PROBE_RANGE0, PROBE_INCREMENT = PROBE_INCREMENT0;
     let pidx = this.pinyin_idx, lidx = this.line_idx;
     let nidx = 0;
-    let found = -1;
+    let found = -1, found_char = "";
     for (let i=0; i<PROBE_RANGE; i++) {
       
       if (lidx >= this.data.length) return;
@@ -281,6 +338,7 @@ class Aligner {
         if (np == py) {
           found = j;
           this_found = true;
+          found_char = this.data[lidx][0][pidx];
           PROBE_RANGE += PROBE_INCREMENT;
           break;
         }
@@ -294,13 +352,23 @@ class Aligner {
       if (this_found) {
         this.pinyin_idx = pidx;
         this.char_idx = this.PinyinIdxToCharIdx(lidx, pidx);
+
+        if (this.line_idx != lidx) {
+          for (let i = this.line_idx ; i < lidx; i++) {
+            // 处理拼图事宜
+            this.puzzle_events[i].forEach((entry) => {
+              g_puzzle_director.NextStep();
+            });
+          }
+        }
+
         this.line_idx = lidx;
         OnUpdateWeightMask();
       }
     }
     
     if (found != -1) {
-      console.log("found=" + found + ", newpinyin=" + newpys);
+      console.log("found=" + found + " (" + found_char + "), newpinyin=" + newpys);
       return found;
     }
      
@@ -309,6 +377,7 @@ class Aligner {
   
   Reset() {
     this.line_idx = 0;
+    this.prev_line_idx = 0;
     this.char_idx = 0;
     this.pinyin_idx = 0;
     this.pan_y = 0;
@@ -359,8 +428,8 @@ class Aligner {
   }
 
   Hover(mx, my) {
-    if (mx >= g_readalong_x && mx <= g_readalong_x + g_readalong_w &&
-        my >= g_readalong_y && my <= g_readalong_y + g_readalong_h) {
+    if (mx >= g_readalong_layout.x && mx <= g_readalong_layout.x + g_readalong_layout.w &&
+        my >= g_readalong_layout.y && my <= g_readalong_layout.y + g_readalong_layout.h) {
       this.is_hovered = true;
     }
   }
@@ -388,19 +457,97 @@ class Aligner {
       return this.pan_y;
     }
   }
+
+  Update(ms, override_k = undefined) {
+    // 聚焦到当前行
+    if (this.is_dragging) return;
+
+    const MARGIN = 32;
+    const DISP_Y = -64;
+
+    // 是否超限？
+    const tot_h = this.text_size * this.data.length * 1.2;
+    const overshoot = tot_h - (g_readalong_layout.h - MARGIN*2 + DISP_Y);
+    let y;
+
+    if (overshoot > 0 && this.data.length > 0) {
+      y = DISP_Y + lerp(0, overshoot, this.line_idx / (this.data.length-1));
+    } else {
+      y = DISP_Y;
+    }
+
+    let k;
+    if (override_k != undefined) {
+      k = override_k;
+    } else {
+      k = Math.pow(0.95, ms/16);
+    }
+    this.pan_y = lerp(y, this.pan_y, k);
+  }
+}
+
+// 根据【拼图模式】激活与否，调整该View的大小
+class ReadAlongLayout {
+  static YCOORDS = [ 62, 500 ];
+
+  constructor() {
+    this.SetFullHeight();
+  }
+
+  SetHalfHeight() {
+    this.title_y = 3;
+    this.x = 4;
+    this.y = ReadAlongLayout.YCOORDS[1];
+    this.h = 732 - this.y;
+  }
+
+  SetFullHeight() {
+    this.title_y = 3;
+    this.y = ReadAlongLayout.YCOORDS[0];
+    this.x = 4;
+    this.w = 470;
+    this.h = 732 - this.y;
+  }
+
+  SwitchMode() {
+    if (this.y == ReadAlongLayout.YCOORDS[0]) {
+      this.SetHalfHeight();
+    } else {
+      this.SetFullHeight();
+    }
+  }
+
+  ShouldDrawPuzzle() {
+    if (this.y == ReadAlongLayout.YCOORDS[1]) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  IsHovered(mx, my) {
+    if (mx >= this.x && my >= this.y &&
+        mx <= this.x + this.w &&
+        my <= this.y + this.h) return true;
+    else return false;
+  }
 }
 
 let g_aligner;
+let g_data_idx = 2;
 function SetupReadAlong() {
   g_aligner = new Aligner();
-  LoadDataset(0);
+  g_readalong_layout = new ReadAlongLayout();
+  LoadDataset(g_data_idx);
 }
 
-let g_data_idx = 0;
 function LoadDataset(idx) { 
   g_aligner.LoadData(DATA[idx], TITLES[idx], FONT_SIZES[idx]); 
+  g_aligner.SpawnPuzzleEventLabels(8);
   g_aligner.Reset();
+  //LoadPuzzleDataset("coffin4");  // TODO：加入其它的拼图
 }
+
 function LoadPrevDataset() {
   g_data_idx --; if (g_data_idx < 0) { g_data_idx = 0; }
   LoadDataset(g_data_idx); 
@@ -426,13 +573,12 @@ function ModifyDataIdx(delta) {
 }
 
 let g_message = "";
+let g_readalong_title_y = 3;
 
-let g_readalong_x = 4, g_readalong_y = 74;
-let g_readalong_w = 472, g_readalong_h = 480 - g_readalong_y;
-function RenderReadAlong(deltaTime) {
+function RenderReadAlong(delta_ms) {
   // Fade lights
   let victims = [];
-  const p = pow(0.96, deltaTime / 16);
+  const p = pow(0.96, delta_ms / 16);
   let keyz = Object.keys(g_highlights);
   keyz.forEach((k) => {
     g_highlights[k] *= p;
@@ -444,8 +590,14 @@ function RenderReadAlong(deltaTime) {
   
   textAlign(LEFT, TOP);
   text(g_message, 0, 18);
-  
+
+  g_aligner.Update(delta_ms);
   g_aligner.Render();
+  push();
+  noFill(); stroke(128);
+  const l = g_readalong_layout;
+  rect(l.x, l.y, l.w, l.h);
+  pop();
 }
 
 let g_highlights = {}

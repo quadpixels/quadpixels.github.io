@@ -33,9 +33,16 @@ function TouchOrMouseStarted(event) {
       })
     }
 
-    if (g_hovered_button == undefined) {
+    const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
+    if (g_hovered_button == undefined &&
+        g_readalong_layout.IsHovered(mx, my)) {
       g_aligner.StartDrag(g_pointer_y / g_scale);
     }
+
+    if (g_hovered_button == undefined && g_puzzle_vis.IsHovered(mx, my)) {
+      g_puzzle_director.StartDrag(mx, my);
+    }
+
   } else if (event instanceof MouseEvent && g_touch_state == undefined) {
     if (millis() - g_prev_touch_millis > DEBOUNCE_THRESH) {
       g_touch_state = "mouse";
@@ -45,9 +52,17 @@ function TouchOrMouseStarted(event) {
       g_viewport_drag_y_last = 0; g_viewport_drag_x_last = 0;
       g_viewport_drag_y = 0; g_viewport_drag_x = 0;
       g_viewport_drag_y_ms = g_viewport_drag_x_ms = millis();
-      if (g_hovered_button == undefined) {
-        g_aligner.StartDrag(g_pointer_y / g_scale);
+
+      const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
+      if (g_hovered_button == undefined &&
+          g_readalong_layout.IsHovered(mx, my)) {
+        g_aligner.StartDrag(my);
       }
+
+      if (g_hovered_button == undefined && g_puzzle_vis.IsHovered(mx, my)) {
+        g_puzzle_director.StartDrag(mx, my);
+      }
+
     } else return;
   } else return;
   
@@ -67,6 +82,7 @@ function TouchOrMouseEnded(event) {
           g_prev_touch_millis = millis();
           
           g_aligner.EndDrag();
+          g_puzzle_director.EndDrag();
         }
       }
     }
@@ -77,6 +93,7 @@ function TouchOrMouseEnded(event) {
       g_prev_touch_millis = millis();
       
       g_aligner.EndDrag();
+      g_puzzle_director.EndDrag();
     }
   }
 }
@@ -95,7 +112,11 @@ function TouchOrMouseMoved(event) {
         g_viewport_drag_x_ms = millis();
         g_viewport_drag_x = g_last_mouse_pos[0] - g_pointer_x;
 
-        g_aligner.OnDragMouseUpdated(g_pointer_y / g_scale);
+        const mx = g_pointer_x / g_scale;
+        const my = g_pointer_y / g_scale;
+
+        g_aligner.OnDragMouseUpdated(my);
+        g_puzzle_director.UpdateDrag(mx, my);
       }
     }
   } else if (event instanceof MouseEvent) {
@@ -110,7 +131,11 @@ function TouchOrMouseMoved(event) {
       g_viewport_drag_x_ms = millis();
       g_viewport_drag_x = g_last_mouse_pos[0] - g_pointer_x;
 
-      g_aligner.OnDragMouseUpdated(g_pointer_y / g_scale);
+      const mx = g_pointer_x / g_scale;
+      const my = g_pointer_y / g_scale;
+        
+      g_aligner.OnDragMouseUpdated(my);
+      g_puzzle_director.UpdateDrag(mx, my);
     }
   }
 }
