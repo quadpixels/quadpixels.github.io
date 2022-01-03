@@ -2,31 +2,36 @@ let g_touch_state, g_touch0_identifier;
 let g_pointer_x, g_pointer_y, g_touch_start_y;
 let g_prev_touch_millis = 0;
 const DEBOUNCE_THRESH = 80;
+let g_prev_touch_start_milis = 0;
+const TEMP_DISABLE_MOUSE_THRESH = 2000; // 触摸后在这么长的时间内，忽略鼠标事件
 let g_last_mouse_pos = [-999, -999];
 let g_drag_start_mouse_pos = [-999, -999];
 let g_drag_start_node_pos = [-999, -999];
 
 // Firefox的鼠标不会产生Touch事件
 function TouchOrMouseStarted(event) {
-  if (typeof(TouchEvent)!="undefined" && event instanceof TouchEvent && g_touch_state == undefined &&
+  const ms = millis();
+  if (typeof(TouchEvent)!="undefined" && 
+      event instanceof TouchEvent && 
+      g_touch_state == undefined &&
       touches.length == 1) { 
+    console.log("touch event");
     g_touch_state = "touch";
     g_pointer_x = touches[0].x;
     g_pointer_y = touches[0].y;
     g_touch0_identifier = event.changedTouches[0].identifier;
   
     // Code dupe, not g00d !
-    const ms = millis();
     g_viewport_drag_y_last = 0; g_viewport_drag_x_last = 0;
     g_viewport_drag_y = 0; g_viewport_drag_x = 0;
     g_viewport_drag_y_ms = g_viewport_drag_x_ms = ms;
-
+    g_prev_touch_start_milis = ms;
 
     if (ms - g_prev_touch_millis > DEBOUNCE_THRESH) {
       const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
       //g_pathfinder_viz.result = "TouchStarted " + mx + " " + my;
       g_buttons.forEach((b) => { // TODO: 为什么需要在这里再加一下
-        b.Hover(mx, my);
+        b.do_Hover(mx, my);
         if (b.is_hovered) {
           b.OnPressed();
         }
@@ -43,7 +48,10 @@ function TouchOrMouseStarted(event) {
       g_puzzle_director.StartDrag(mx, my);
     }
 
-  } else if (event instanceof MouseEvent && g_touch_state == undefined) {
+  } else if (event instanceof MouseEvent &&
+    g_touch_state == undefined &&
+    ms - g_prev_touch_start_milis >= TEMP_DISABLE_MOUSE_THRESH) {
+    console.log("mouse event");
     if (millis() - g_prev_touch_millis > DEBOUNCE_THRESH) {
       g_touch_state = "mouse";
       g_pointer_x = mouseX;
@@ -62,6 +70,13 @@ function TouchOrMouseStarted(event) {
       if (g_hovered_button == undefined && g_puzzle_vis.IsHovered(mx, my)) {
         g_puzzle_director.StartDrag(mx, my);
       }
+
+      g_buttons.forEach((b) => {
+        b.Hover(mx, my);
+        if (b.is_hovered) {
+          b.OnPressed();
+        }
+      })
 
     } else return;
   } else return;

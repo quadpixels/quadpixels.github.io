@@ -543,9 +543,9 @@ function SetupReadAlong() {
 
 function LoadDataset(idx) { 
   g_aligner.LoadData(DATA[idx], TITLES[idx], FONT_SIZES[idx]); 
-  g_aligner.SpawnPuzzleEventLabels(8);
   g_aligner.Reset();
-  //LoadPuzzleDataset("coffin4");  // TODO：加入其它的拼图
+  LoadPuzzleDataset("coffin4");  // TODO：加入其它的拼图
+  g_aligner.SpawnPuzzleEventLabels(g_puzzle_vis.objects.length);
 }
 
 function LoadPrevDataset() {
@@ -619,7 +619,7 @@ function ReadAlongKeyPressed(key, keyCode) {
   else if (keyCode == RIGHT_ARROW) { g_aligner.Step(1); }
   else if (key == '[') { LoadPrevDataset(); }
   else if (key == ']') { LoadNextDataset(); }
-  else if (key == 'R') { g_aligner.Reset(); }
+  else if (key == 'R') { LoadDataset(g_data_idx); }
 }
 
 // 测试拼音分出隔是否分得对

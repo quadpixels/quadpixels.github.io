@@ -282,7 +282,6 @@ class PuzzleViz {
     }
 
     const p0 = g_cam.pos.copy();
-    p0.y *= -1; // 这个地方比较坑爹 :)
     const pick_ray = g_cam.GetPickRay(rx, ry, this.w, this.h);
     const ret = p0.add(pick_ray.mult(dist));
     return ret;
@@ -386,8 +385,8 @@ class PuzzleDirector {
     if (!this.is_dragging) return;
     const deltax = mx - this.last_mx, deltay = my - this.last_my;
     this.last_mx = mx; this.last_my = my;
-    g_rot_inertia[0] -= deltax * 0.0001;
-    g_rot_inertia[1] += deltay * 0.0001;
+    g_rot_inertia[0] -= deltax * 0.0002;
+    g_rot_inertia[1] += deltay * 0.0002;
   }
 }
 

@@ -17,7 +17,7 @@ const DATA = [
     [ "三尺剑，六钧弓。岭北对江东。", "san chi jian liu jun gong ling bei dui jiang dong" ],
     [ "人间清暑殿，天上广寒宫。", "ren jian qing shu dian tian shang guang han gong"],
     [ "两岸晓烟杨柳绿，一园春雨杏花红。", "liang an xiao yan yang liu lv yi yuan chun yu xing hua hong" ],
-    [ "两鬓风霜，途次早行之客", "liang bin feng shuang tu ci zao xing zhi ke" ],
+    [ "两鬓风霜，途次早行之客；", "liang bin feng shuang tu ci zao xing zhi ke" ],
     [ "一蓑烟雨，溪边晚钓之翁。", "yi suo yan yu xi bian wan diao zhi weng" ],
     [ "沿对革，异对同。白叟对黄童。", "yan dui ge yi dui tong bai sou dui huang tong" ],
     [ "江风对海雾，牧子对渔翁。", "jiang feng dui hai wu mu zi dui yu weng"],

@@ -373,6 +373,7 @@ class ObjModel extends Box {
     
     g.push();
     g_suppress_textures = true;
+    g.scale(1, -1, 1);
     this.ApplyTransform(g);
     
     if (this.stroke == undefined) { g.noStroke(); }
@@ -535,31 +536,31 @@ class Camera3 extends Stuff {
     const ret = this.orientation.m[2].copy()
     ret.mult(-1)
     //ret.x = -ret.x;
-    ret.y = -ret.y;
+    //ret.y = -ret.y;
     return ret
   }
   
   GetGlobalX() {
     let ret = this.orientation.m[0].copy();
-    ret.y = -ret.y;
+    //ret.y = -ret.y;
     return ret;
   }
   
   GetGlobalY() {
     let ret = this.orientation.m[1].copy();
-    ret.y = -ret.y
+    //ret.y = -ret.y
     return ret;
   }
   
   GetGlobalZ() {
     let ret = this.orientation.m[2].copy();
-    ret.y = -ret.y
+    //ret.y = -ret.y
     return ret;
   }
   
   GetPos() {
     let ret = this.pos.copy()
-    ret.y = -ret.y
+    //ret.y = -ret.y
     return ret
   }
   

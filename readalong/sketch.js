@@ -307,7 +307,7 @@ class RecorderViz extends MyStuff {
     this.px_per_samp = 1;  // 1 sample = 1 px
 
     this.window_offset = 0;
-    this.window_delta = 50;
+    this.window_delta = 25;
     this.window_width = 100;
 
     this.recog_status = [];
@@ -656,7 +656,9 @@ class Button extends MyStuff {
     if (!this.is_enabled) return;
     if (!this.is_pressed) {
       this.is_pressed = true;
+      console.log("this.clicked");
       this.clicked();
+      console.trace();
     }
   }
   OnReleased() {
@@ -1409,7 +1411,9 @@ async function setup() {
 
   g_animator = new Animator()
 
-  SetupReadAlong();
+  SetupPuzzle();
+
+  SetupReadAlong(); // 依赖puzzle
 
   setTimeout(() => {
     g_btn_statsfornerds.clicked();
@@ -1418,8 +1422,6 @@ async function setup() {
   setTimeout(() => {
     g_btn_load_model.clicked();
   }, 1000);
-
-  SetupPuzzle();
 }
 
 function draw() {
@@ -1586,18 +1588,7 @@ function touchStarted(event) {
 
 function mousePressed(event) {
   TouchOrMouseStarted(event);
-
   // TODO：为什么在手机上按一下既会触发touchevent又会触发mouseevent
-  if (millis() < g_prev_touch_millis + DEBOUNCE_THRESH) return;
-
-
-  const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
-  g_buttons.forEach((b) => { // TODO: 为什么需要在这里再加一下
-    b.Hover(mx, my);
-    if (b.is_hovered) {
-      b.OnPressed();
-    }
-  })
 }
 
 function touchEnded(event) {
