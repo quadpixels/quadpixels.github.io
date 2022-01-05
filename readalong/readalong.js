@@ -278,6 +278,8 @@ class Aligner {
       new Set([ "lei", "wei" ]),
       new Set([ "li", "ling" ]),
       new Set([ "qiu", "qiong" ]),
+      new Set([ "ju",  "yu" ]), // 居
+      new Set([ "shi", "chi"]), // 齿
     ];
       
     if (USE_FUZZY) {

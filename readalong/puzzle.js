@@ -61,10 +61,12 @@ function LoadPuzzleDataset(name) {
       o.material = "diffuse";
     }
     o.scale.y = -1;
+    o.pos = g_puzzle_vis.PreferredOnScreenPosToWorldPos(-999);
     g_puzzle_vis.objects.push(o);
   });
   
   g_puzzle_director = new PuzzleDirector(g_puzzle_vis.objects);
+  g_puzzle_director.PrevStep();
 }
 
 class PuzzleViz {
@@ -287,6 +289,31 @@ class PuzzleViz {
     return ret;
   }
 
+  PreferredUVDist(reload_idx) {
+    let rx, ry, dist;
+    if (reload_idx != -999) {
+      const uvs = PuzzleViz.UCOORDS;
+      const row = parseInt(reload_idx / uvs.length);
+      const col = reload_idx % uvs.length;
+      ry = this.h - 32 - PuzzleViz.CELL_SIZE * (0.5 + row);
+      rx = this.w * uvs[col];
+      dist = 60;
+    } else {
+      ry = this.h / 3;
+      rx = this.w / 2;
+      dist = 20;
+    }
+
+    return [new p5.Vector(rx, ry), dist]
+  }
+
+  OnScreenPosToWorldPos(uv, dist) {
+    const p0 = g_cam.pos.copy();
+    const pick_ray = g_cam.GetPickRay(uv.x, uv.y, this.w, this.h);
+    const ret = p0.add(pick_ray.mult(dist));
+    return ret;
+  }
+
   IsHovered(mx, my) {
     if (mx >= this.x && my >= this.y &&
       mx <= this.x + this.w &&
@@ -309,6 +336,58 @@ function ComputeBoundingBox(obj) {
   return [lb, ub];
 }
 
+class PuzzleAnimState {
+
+  // 在Puzzle中所有的位置都是以“raycast的位置”来表示的
+  // 所以保存Raycast的位置与距离
+
+  constructor(obj, bbcenter) {
+    this.obj = obj;
+    this.bbcenter = bbcenter;
+
+    // 默认放到组装场地中间
+    const uvd = g_puzzle_vis.PreferredUVDist(-999);
+    this.uv0 = uvd[0];
+    this.uv1 = uvd[0].copy();
+
+    this.dist0 = 40; this.dist1 = 40;
+    this.t = 0;
+    this.is_done0 = false;
+    this.is_done1 = false;
+  }
+
+  GetPosition() {
+    const x = lerp(this.uv0.x, this.uv1.x, this.t);
+    const y = lerp(this.uv0.y, this.uv1.y, this.t);
+    const d = lerp(this.dist0, this.dist1, this.t);
+    const p = g_puzzle_vis.OnScreenPosToWorldPos(new p5.Vector(x, y), d);
+    
+    let offcenter_t = 0;
+    if (this.is_done0 == false && this.is_done1 == true) {
+      offcenter_t = 1-this.t;
+    } else if (this.is_done0 == true && this.is_done1 == false) {
+      offcenter_t = this.t;
+    } else if (this.is_done0 == true && this.is_done1 == true) {
+      offcenter_t = 0;
+    } else {
+      offcenter_t = 1;
+    }
+    p.add(this.obj.ToGlobalDirection(this.bbcenter.copy().mult(-offcenter_t)));
+    
+    return p;
+  }
+
+  SetToPosition(uv, d, is_done) {
+    this.uv0 = this.uv1.copy();
+    this.uv1 = uv.copy();
+    this.dist0 = this.dist1;
+    this.dist1 = d;
+    this.is_done0 = this.is_done1;
+    this.is_done1 = is_done;
+    g_animator.Animate(this, "t", undefined, [0, 1], [0, 800]);
+  }
+}
+
 class PuzzleDirector {
   constructor(objects) {
     this.num_staging_max = 6;
@@ -316,31 +395,30 @@ class PuzzleDirector {
     const N = objects.length;
     
     this.positions_orig = [];
-    this.positions = [];
     this.bb_centers = [];
+    this.anim_states = [];
 
     for (let i=0; i<N; i++) {
       const bb = ComputeBoundingBox(objects[i].obj);
       const bbcenter = bb[0].copy().add(bb[1]).mult(0.5);
       bbcenter.y *= -1;
       this.bb_centers.push(bbcenter);
+      this.anim_states.push(new PuzzleAnimState(objects[i], bbcenter.copy()));
     }
 
     this.num_solved = 0;
-    this.do_UpdatePoses();
   }
 
   Update(ms) {
-    this.do_UpdatePoses();
     for (let i=0; i<this.objects.length; i++) {
-      this.objects[i].pos = this.positions[i].copy();
+      this.objects[i].pos = this.anim_states[i].GetPosition();
     }
   }
 
   // Update主要有两步：
   // 1. 插值
   // 2. 根据camera中raycast的位置设置世界坐标系中的位置
-  do_UpdatePoses() {
+  do_SetPos() {
     for (let i=this.num_solved, j=0; i<this.objects.length; i++, j++) {
       const o = this.objects[i];
       if (j >= this.num_staging_max) {
@@ -348,11 +426,13 @@ class PuzzleDirector {
       } else {
         o.visible = true;
       }
-      this.positions[i] = g_puzzle_vis.PreferredOnScreenPosToWorldPos(j);
-      this.positions[i].add(o.ToGlobalDirection(this.bb_centers[i].copy().mult(-1)));
+      const uvd = g_puzzle_vis.PreferredUVDist(j);
+      this.anim_states[i].SetToPosition(uvd[0], uvd[1], false);
+      this.anim_states[i].is_done = false;
     }
     for (let i=0; i<this.num_solved; i++) {
-      this.positions[i] = g_puzzle_vis.PreferredOnScreenPosToWorldPos(-999);
+      const uvd = g_puzzle_vis.PreferredUVDist(-999);
+      this.anim_states[i].SetToPosition(uvd[0], uvd[1], true);
     }
   }
 
@@ -361,7 +441,7 @@ class PuzzleDirector {
     if (this.num_solved > this.objects.length) {
       this.num_solved = this.objects.length;
     }
-    this.do_UpdatePoses();
+    this.do_SetPos();
   }
 
   PrevStep() {
@@ -369,7 +449,7 @@ class PuzzleDirector {
     if (this.num_solved < 0) {
       this.num_solved = 0;
     }
-    this.do_UpdatePoses();
+    this.do_SetPos();
   }
 
   StartDrag(mx, my) {
