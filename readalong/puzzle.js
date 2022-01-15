@@ -39,6 +39,7 @@ function SetupPuzzle() {
 }
 
 function LoadPuzzleDataset(name) {
+  console.log("Loading puzzle dataset: " + name);
   if (g_puzzle_vis == undefined) return;
   let entry = OBJ_DATASET[name];
   g_puzzle_vis.objects = [];
@@ -66,27 +67,30 @@ function LoadPuzzleDataset(name) {
 }
 
 class PuzzleViz {
-  static CELL_SIZE = 90;
+  static CELL_SIZE = 110;
   static UCOORDS = [0.2, 0.4, 0.6, 0.8];
   constructor() {
+    this.is_dirty = 4;
     this.x = 4;
     this.y = 57;
-    this.w = 472;
+    this.w = 470;
     this.h = 440;
     this.graph3d = createGraphics(this.w, this.h, WEBGL);
     this.objects = [];
+    this.rendered_frame_count = 0;
   }
   
   DrawGrid() {
     push();
 
     stroke(32);
-    fill(255);
+    
+    fill(COLOR_BACKGROUND);
     rect(0, 0, this.w, this.h);
 
     rectMode(CENTER);
-    noStroke();
-    fill(240);
+    stroke(182, 158, 110);
+    fill(249, 235, 200);
     const us = PuzzleViz.UCOORDS;
     const ys = [ this.h-32-PuzzleViz.CELL_SIZE*0.5, this.h-32-PuzzleViz.CELL_SIZE*1.5 ];
     for (let y=0; y<ys.length; y++) {
@@ -108,33 +112,37 @@ class PuzzleViz {
       const THRESH = 0.00001;
       const SPEED_MULT = 5;
   
-      const damp = pow(0.97, delta_ms/16);
+      const damp = pow(0.9, delta_ms/16);
       for (let i=0; i<3; i++) {
         if (g_axis[i] != 0) {
           cs[i] = lerp(g_axis[i]*SPEED_MULT, cs[i], damp);
         }
       }
   
-      const damp2 = pow(0.95, delta_ms/16);
+      const damp2 = pow(0.9, delta_ms/16);
       if (abs(cs[0]) > THRESH ) {
         CrystalBallMoveCamera(new p5.Vector(0,1,0), d*0.01*cs[0]);
         cs[0] *= damp2;
+        this.is_dirty = 3;
       } else cs[0] = 0;
   
       if (abs(cs[1]) > THRESH ) {
         CrystalBallMoveCamera(new p5.Vector(1,0,0), d*0.01*cs[1]);
         cs[1] *= damp2;
+        this.is_dirty = 3;
       } else cs[1] = 0;
   
       if (abs(cs[2]) > THRESH ) {
         CrystalBallMoveCamera(new p5.Vector(0,0,1), d*0.01*cs[2]);
         cs[2] *= damp2;
+        this.is_dirty = 3;
       } else cs[2] = 0;
   
       // Inertia
       if (abs(g_rot_inertia[0]) > THRESH) {
         CrystalBallMoveCamera(new p5.Vector(0,1,0), g_rot_inertia[0]*SPEED_MULT);
         g_rot_inertia[0] *= damp2;
+        this.is_dirty = 3;
       } else {
         g_rot_inertia[0] = 0;
       }
@@ -142,6 +150,7 @@ class PuzzleViz {
       if (abs(g_rot_inertia[1]) > THRESH) {
         CrystalBallMoveCamera(new p5.Vector(1,0,0), g_rot_inertia[1]*SPEED_MULT);
         g_rot_inertia[1] *= damp2;
+        this.is_dirty = 3;
       } else {
         g_rot_inertia[1] = 0;
       }
@@ -162,34 +171,44 @@ class PuzzleViz {
       }*/
     }
 
-    this.graph3d.push();
-    this.graph3d.resetMatrix();
-    this.graph3d.camera();
-    
-    g_cam.Apply(this.graph3d);
-    let lightDir = new p5.Vector(0, 0, -1);
-    lightDir = g_cam.ToGlobalDirection(lightDir);
-    this.graph3d.directionalLight(250, 250, 250, lightDir);
-    this.graph3d.ambientLight(50);
-  
-    this.graph3d.scale(1, -1);
-    
-    this.graph3d.clear();
-    this.graph3d.fill(255);
-    this.graph3d.stroke(128);
-    this.graph3d.perspective(PI/3.0, this.w*1.0/this.h, 0.1, 10000);
-  
-    if (g_tex != undefined) {
-      this.graph3d.texture(g_tex);
+    g_puzzle_director.Update(delta_ms);
+    if (!g_animator.IsDone()) {
+      this.is_dirty = 3;
     }
 
-    g_puzzle_director.Update(delta_ms);
+    if (this.is_dirty <= 0) {}
+    else {
+      this.is_dirty --;
 
-    this.objects.forEach((o) => {
-      o.Render(this.graph3d);
-    });
-  
-    this.graph3d.pop();
+      this.graph3d.push();
+      this.graph3d.resetMatrix();
+      this.graph3d.camera();
+      
+      g_cam.Apply(this.graph3d);
+      let lightDir = new p5.Vector(0, 0, -1);
+      lightDir = g_cam.ToGlobalDirection(lightDir);
+      this.graph3d.directionalLight(250, 250, 250, lightDir);
+      this.graph3d.ambientLight(50);
+    
+      this.graph3d.scale(1, -1);
+      
+      this.graph3d.clear();
+      this.graph3d.fill(255);
+      this.graph3d.stroke(128);
+      this.graph3d.perspective(PI/3.0, this.w*1.0/this.h, 0.1, 10000);
+    
+      if (g_tex != undefined) {
+        this.graph3d.texture(g_tex);
+      }
+
+
+      this.objects.forEach((o) => {
+        o.Render(this.graph3d);
+      });
+    
+      this.graph3d.pop();
+      this.rendered_frame_count++;
+    }
 
     // ================= 真正在画布上画东西
     push();
@@ -234,7 +253,9 @@ class PuzzleViz {
       text("Crystalball: " + g_crystal_speed[0].toFixed(2) + ", " +
                             g_crystal_speed[1].toFixed(2) + ", " +
                             g_crystal_speed[2].toFixed(2)
-                            + " rot_inertia: " + g_rot_inertia[0].toFixed(5) + ", " + g_rot_inertia[1].toFixed(5), 3, 16)
+                            + " rot_inertia: " + g_rot_inertia[0].toFixed(5) + ", " + g_rot_inertia[1].toFixed(5) +
+                            ", frame" + this.rendered_frame_count,
+                            3, 16)
       let txt = "Selected: ";
       if (g_highlighted_obj_idx == -1) {
         txt += "None";
@@ -253,12 +274,53 @@ class PuzzleViz {
     }
   
     // Crosshair
-    const l = 10;
-    const mx = (g_pointer_x - g_puzzle_vis.x) / g_scale;
-    const my = (g_pointer_y - g_puzzle_vis.y) / g_scale;
-    stroke(32);
-    line(mx - l, my, mx + l, my);
-    line(mx, my - l, mx, my + l);
+    if (false) {
+      const l = 10;
+      const mx = (g_pointer_x - g_puzzle_vis.x) / g_scale;
+      const my = (g_pointer_y - g_puzzle_vis.y) / g_scale;
+      stroke(32);
+      line(mx - l, my, mx + l, my);
+      line(mx, my - l, mx, my + l);
+    }
+
+    // 进度条
+    const PROG_CELL_W = 24;
+    const PROG_CELL_H = 16;
+    const TOT_W = PROG_CELL_W * (this.objects.length + 1);
+    const progress_x = g_puzzle_vis.w/2; // 在push-pop中，不用加(x,y)了
+    const progress_x0 = progress_x - TOT_W/2;
+    const numberz = ["零", "壹", "贰", "叁", "肆", "伍", "陆", "柒", "拐", "玖"];
+    textSize(13);
+    textAlign(CENTER, CENTER);
+    for (let i=0; i<=this.objects.length; i++) {
+      stroke(144, 124, 51);
+      if (i <= g_puzzle_director.num_solved_watermark) {
+        fill(118, 211, 154);
+      } else {
+        fill(128);
+      }
+      const dx = progress_x0 + PROG_CELL_W * i;
+      const dy = 8; // 在push-pop中，不用加(x,y)了
+      rect(dx, dy, PROG_CELL_W, PROG_CELL_H);
+
+      noStroke();
+      fill(32);
+
+      let label;
+      if (i < numberz.length) {
+        label = numberz[i];
+      } else {
+        label = "" + i;
+      }
+      text(label, dx+PROG_CELL_W/2, dy+PROG_CELL_H/2);
+    }
+
+    noStroke();
+    fill(144, 124, 51);
+    const cursor_w = PROG_CELL_W, cursor_h = 8;
+    const cx = progress_x0 + PROG_CELL_W * (g_puzzle_director.num_solved + 0.5);
+    const cy = PROG_CELL_H + 8;
+    rect(cx-cursor_w/2, cy, cursor_w, cursor_h);
 
     pop();
   }
@@ -272,7 +334,7 @@ class PuzzleViz {
       const col = reload_idx % uvs.length;
       ry = this.h - 32 - PuzzleViz.CELL_SIZE * (0.5 + row);
       rx = this.w * uvs[col];
-      dist = 60;
+      dist = 50;
     } else {
       ry = this.h / 3;
       rx = this.w / 2;
@@ -390,6 +452,7 @@ class PuzzleDirector {
     this.objects = objects;
     const N = objects.length;
     
+    this.num_solved_watermark = 0;
     this.positions_orig = [];
     this.bb_centers = [];
     this.anim_states = [];
@@ -432,10 +495,26 @@ class PuzzleDirector {
     }
   }
 
-  NextStep() {
+  IsAllDone() {
+    let ret = true;
+    this.anim_states.forEach((s) => {
+      if (s.is_done != true) {
+        ret = false;
+      }
+    });
+    return ret;
+  }
+
+  NextStep(override_watermark = false) {
+    if (!override_watermark) {
+      if (this.num_solved + 1 > this.num_solved_watermark) return;
+    }
     this.num_solved++;
     if (this.num_solved > this.objects.length) {
       this.num_solved = this.objects.length;
+    }
+    if (override_watermark) {
+      this.num_solved_watermark = max(this.num_solved_watermark, this.num_solved);
     }
     this.do_SetPos();
   }

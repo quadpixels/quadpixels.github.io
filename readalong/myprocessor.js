@@ -242,7 +242,7 @@ class MyProcessor extends AudioWorkletProcessor {
     this.tot_entries = 0
     // End ring buffer
 
-    let sampleRate = 44100;
+    let sampleRate = 48000;
     console.log("options: ");
     console.log(options)
 
@@ -300,8 +300,6 @@ class MyProcessor extends AudioWorkletProcessor {
 
   process (inputs, outputs, parameters) {
     if (this.tot_entries == 0) {
-      console.log("Parameters:")
-      console.log(parameters)
     }  
     
     const input = inputs[0][0]

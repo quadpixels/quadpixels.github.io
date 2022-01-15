@@ -54,7 +54,6 @@ function TouchOrMouseStarted(event) {
   } else if (event instanceof MouseEvent &&
     g_touch_state == undefined &&
     ms - g_prev_touch_start_milis >= TEMP_DISABLE_MOUSE_THRESH) {
-    console.log("mouse event");
     if (millis() - g_prev_touch_millis > DEBOUNCE_THRESH) {
       g_touch_state = "mouse";
       g_pointer_x = mouseX;

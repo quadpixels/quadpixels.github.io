@@ -81,6 +81,9 @@ var g_btn_rec, g_btn_mic, g_btn_file, g_btn_demo_data;
 var g_btn_load_model, g_btn_predict;
 var g_btn_wgt_add, g_btn_wgt_sub, g_btn_frameskip_add, g_btn_frameskip_sub;
 var g_btn_puzzle_mode;
+var g_btn_next, g_btn_next5, g_btn_prev, g_btn_prev5;
+var g_btn_level_select;
+var g_btn_puzzle_next_step, g_btn_puzzle_prev_step;
 
 // 遍历所有按钮
 // 注意！包括不在 g_buttons 中的按钮
@@ -636,7 +639,15 @@ class RecorderViz extends MyStuff {
       push();
       scale(scale_x, 1);
       let lx = 0, ly = dy + 20;
-      const step = 4;
+      let step = 4;
+
+      let nshown = this.energy_readings.length;
+      // 别画太多
+      while (nshown > 250) {
+        nshown /= 2;
+        step *= 2;
+      }
+
       for (let i=0; i<this.energy_readings.length; i += step) {
         const mag = this.myMap(this.energy_readings[i]*32768);
         const dy0 = ly+16*mag;
@@ -792,6 +803,7 @@ class Button extends MyStuff {
     
     if (this.IsHidden()) {
       this.is_hovered = false;
+      return;
     }
 
     mx -= g_ui_translate_x;
@@ -812,6 +824,7 @@ class Button extends MyStuff {
   }
   OnPressed() {
     if (!this.is_enabled) return;
+    if (this.is_hidden) return;
     if (!this.is_pressed) {
       this.is_pressed = true;
       this.clicked();
@@ -1238,10 +1251,6 @@ function OnPredictionResult(res) {
   //OnNewPinyins(d.Decoded.split(" "));
   g_recorderviz.OnDecodedAndAligned(d.serial, d.Decoded, d.decode_timestamp)
   g_aligner.OnRecogStatus(g_recorderviz.recog_status);
-
-  if (this.is_recording == false) {
-    g_aligner.OnStopRecording();
-  }
 }
 
 // For moving window stuff
@@ -1472,6 +1481,7 @@ async function setup() {
   btn_prev5.clicked = function() {
     ModifyDataIdx(-5);
   }
+  g_btn_prev5 = btn_prev5;
   g_buttons.push(btn_prev5);
 
   let btn_next5 = new Button("+5");
@@ -1482,6 +1492,7 @@ async function setup() {
   btn_next5.clicked = function() {
     ModifyDataIdx(5);
   }
+  g_btn_next5 = btn_next5;
   g_buttons.push(btn_next5);
 
   let btn_next = new Button(">");
@@ -1492,6 +1503,7 @@ async function setup() {
   btn_next.clicked = function() {
     LoadNextDataset();
   }
+  g_btn_next = btn_next;
   g_buttons.push(btn_next);
 
   let btn_prev = new Button("<");
@@ -1502,13 +1514,14 @@ async function setup() {
   btn_prev.clicked = function() {
     LoadPrevDataset();
   }
+  g_btn_prev = btn_prev;
   g_buttons.push(btn_prev);
 
-  let btn_reset = new Button("R");
-  btn_reset.x = 440;
-  btn_reset.y = 240;
-  btn_reset.w = 34;
-  btn_reset.h = 35;
+  let btn_reset = new Button("重来");
+  btn_reset.x = 4;
+  btn_reset.y = 30;
+  btn_reset.w = 40;
+  btn_reset.h = 24;
   btn_reset.clicked = function() {
     g_aligner.Reset();
   }
@@ -1562,7 +1575,7 @@ async function setup() {
   g_btn_frameskip_sub.is_enabled = false;
   g_btn_frameskip_sub.SetParent(g_frameskip_vis);
 
-  g_btn_puzzle_mode = new Button("謎之\n模式");
+  g_btn_puzzle_mode = new Button("谜题\n模式");
   g_btn_puzzle_mode.x = 420;
   g_btn_puzzle_mode.y = 770;
   g_btn_puzzle_mode.w = 50;
@@ -1572,6 +1585,38 @@ async function setup() {
     g_aligner.Update(0, 0); // 跳过跟踪动画
   }
   g_buttons.push(g_btn_puzzle_mode);
+
+  g_btn_level_select = new Button("返回");
+  g_btn_level_select.x = 4;
+  g_btn_level_select.y = 4;
+  g_btn_level_select.w = 40;
+  g_btn_level_select.h = 24;
+  g_btn_level_select.clicked = function() {
+    g_levelselect.FadeIn();
+    g_levelselect.ClearSelection();
+  }
+  g_buttons.push(g_btn_level_select);
+
+  g_btn_puzzle_prev_step = new Button("上一步");
+  g_btn_puzzle_prev_step.x = 350;
+  g_btn_puzzle_prev_step.y = 60;
+  g_btn_puzzle_prev_step.w = 50;
+  g_btn_puzzle_prev_step.h = 32;
+  g_btn_puzzle_prev_step.clicked = function() {
+    g_puzzle_director.PrevStep();
+  }
+  g_buttons.push(g_btn_puzzle_prev_step);
+
+
+  g_btn_puzzle_next_step = new Button("下一步");
+  g_btn_puzzle_next_step.x = 410;
+  g_btn_puzzle_next_step.y = 60;
+  g_btn_puzzle_next_step.w = 50;
+  g_btn_puzzle_next_step.h = 32;
+  g_btn_puzzle_next_step.clicked = function() {
+    g_puzzle_director.NextStep(false);
+  }
+  g_buttons.push(g_btn_puzzle_next_step);
 
   g_runningmode_vis = new RunningModeVis();
 
@@ -1611,6 +1656,7 @@ function draw() {
     delta_ms = (ms - g_last_draw_ms);
     g_animator.Update(delta_ms);
     g_introscreen.Update(delta_ms);
+    g_levelselect.Update(delta_ms);
   }
 
   background(COLOR_BACKGROUND);
@@ -1694,6 +1740,13 @@ function draw() {
   if (g_frame_count == 1 || (g_frame_count % 60 == 0)) {
     OnWindowResize();
   }
+}
+
+function HideNavigationButtons() {
+  g_btn_next.is_hidden  = true;
+  g_btn_next5.is_hidden = true;
+  g_btn_prev.is_hidden  = true;
+  g_btn_prev5.is_hidden = true;
 }
 
 // Callbacks from sound

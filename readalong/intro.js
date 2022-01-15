@@ -126,16 +126,25 @@ class LevelSelect extends MyStuff {
   }
 
   DeselectTitle(idx) {
-    console.log("deselect " + idx);
     this.selected_title_idxes = RemoveFromArray(this.selected_title_idxes, idx);
     this.num_sentences -= DATA[idx].length;
     this.UpdateTitles();
   }
 
   SelectTitle(idx) {
-    console.log("select   " + idx);
     this.selected_title_idxes.push(idx);
     this.num_sentences += DATA[idx].length;
+    let first_sentence = DATA[idx][0][0];
+    this.SetPreviewText(first_sentence);
+    this.UpdateTitles();
+  }
+
+  ClearSelection() {
+    this.btn_puzzles.forEach((b) => {
+      b.checked = false;
+    });
+    this.selected_title_idxes = [];
+    this.num_sentences = 0;
     this.UpdateTitles();
   }
 
@@ -292,7 +301,7 @@ class LevelSelect extends MyStuff {
           b.checked = false;
         }
       } else {
-        b.text = "---";
+        b.txt = "---";
         b.is_enabled = false;
         b.checked = false;
       }
@@ -333,6 +342,14 @@ class LevelSelect extends MyStuff {
   SetPreviewText(x) {
     this.preview_countdown_ms = 3000;
     this.preview_text = x;
+  }
+
+  GetPreviewAlpha() {
+    if (this.preview_countdown_ms > 1000) {
+      return 255;
+    } else {
+      return map(this.preview_countdown_ms, 1000, 0, 255, 0);
+    }
   }
 
   do_Render() {
@@ -443,6 +460,12 @@ class LevelSelect extends MyStuff {
       BREAKS_Y);
     }
 
+    // 预览文字
+    textAlign(CENTER, BOTTOM);
+    noStroke();
+    fill(color(213, 173, 114, this.GetPreviewAlpha()));
+    text(this.preview_text, W0/2, this.btn_poems_y + 90);
+
     pop();
   }
 
@@ -482,11 +505,16 @@ class LevelSelect extends MyStuff {
     // 组装数据集
     const d = [];
     const stidxes = this.selected_title_idxes;
+    const title = this.GenTitle();
 
     if (is_puzzle) {
-      LoadMultipleDatasets(stidxes, "【芝麻开门】", this.ChosenPuzzleIdx());
+      HideNavigationButtons();
+      g_btn_puzzle_mode.is_enabled = true;
+      LoadMultipleDatasets(stidxes, title, this.ChosenPuzzleIdx());
     } else {
-      LoadMultipleDatasets(stidxes, "【芝麻开门】", -999);
+      HideNavigationButtons();
+      g_btn_puzzle_mode.is_enabled = false;
+      LoadMultipleDatasets(stidxes, title, -999);
     }
 
     this.FadeOut();

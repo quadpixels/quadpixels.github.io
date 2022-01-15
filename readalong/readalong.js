@@ -1,5 +1,11 @@
 const PROBE_RANGE0 = 4, PROBE_INCREMENT0 = 2;
 
+const PUZZLE_EVENT_COLOR = [192, 192, 244];
+const TENTATIVE_MATCH_COLOR = [10, 183, 252];
+const CAN_PROBE_COLOR = [ 32, 244, 244 ];
+const DONE_BG = [ 238, 176, 94 ];
+const DONE_FG = [ 204, 113, 84 ];
+
 class AlignerParticle {
   // 这里的坐标是canvas上的坐标
   constructor(start, target, target_lidx, target_cidx) {
@@ -49,7 +55,14 @@ class AlignerParticle {
     }
   }
   Render() {
-    circle(this.pos.x, this.pos.y, 8);
+    let r = 8, alpha = 128;
+    if (this.state == "explode") {
+      r = map(this.explode_ms, 500, 0, 8, 25);
+      alpha = map(this.explode_ms, 500, 0, 128, 0);
+    }
+    stroke(32);
+    fill(color(255, 234, 32, alpha));
+    circle(this.pos.x, this.pos.y, r);
     //line(this.pos.x, this.pos.y, this.p0.x, this.p0.y);
   }
 }
@@ -60,8 +73,6 @@ class AlignerParticleSystem {
   }
 
   Render() {
-    stroke(32);
-    fill(color(255, 234, 32, 128));
     this.particles.forEach((p) => {
       p.Render();
     })
@@ -106,9 +117,21 @@ class Aligner extends MyStuff {
 
     // 粒子到达时就会标记为True
     this.char_done = [];
+
+    this.activation_lidx = -1;
+    this.done_fadein_ms = 1000;
+    this.is_done = false;
+  }
+
+  FadeInDone() {
+    this.done_fadein_ms = 1000;
   }
   
   LoadData(data, title, text_size) {
+
+    this.timestamp0 = millis();
+    this.timestamp1 = millis();
+    this.activation_lidx = -1;
     this.text_size = text_size;
     this.title = title;
     this.data = data.slice();
@@ -119,6 +142,15 @@ class Aligner extends MyStuff {
     
     this.char_idx   = 0; // 第几个字，可能与拼音有出入
     this.pinyin_idx = 0; // 第几个拼音
+    
+    this.saved_pinyin_idx = undefined;
+    this.saved_line_idx = undefined;
+    this.saved_char_idx = undefined;
+
+    this.probe_lidx = undefined;
+    this.probe_pidx = undefined;
+    this.probe_cidx = undefined;
+    this.is_done = false;
 
     console.log(this.data);
 
@@ -282,7 +314,7 @@ class Aligner extends MyStuff {
     let y = g_readalong_layout.y + translate_y;
     let x = g_readalong_layout.x;
     for (let i=0; i<this.data.length; i++) {
-      const line = this.data[i][0];
+      const curr_line = this.data[i][0];
       
         
       let alpha = 255, c0, c;
@@ -296,8 +328,8 @@ class Aligner extends MyStuff {
       }
 
       let dx = 0, pidx = 0; // 拼音idx
-      for (let cidx = 0; cidx < line.length; cidx ++) {
-        const ch = line[cidx];
+      for (let cidx = 0; cidx < curr_line.length; cidx ++) {
+        const ch = curr_line[cidx];
         
         // Is done?
         let state = "not_done";
@@ -342,9 +374,9 @@ class Aligner extends MyStuff {
         if (state == "done") {
           c0 = color(252, 183, 10, alpha);
         } else if (state == "tentative") {
-          c0 = color(10, 183, 252, alpha);
+          c0 = color(TENTATIVE_MATCH_COLOR[0], TENTATIVE_MATCH_COLOR[1], TENTATIVE_MATCH_COLOR[2], alpha);
         } else if (state == "can probe") {
-          c0 = color(32, 255, 32, alpha);
+          //c0 = color(CAN_PROBE_COLOR[0], CAN_PROBE_COLOR[1], CAN_PROBE_COLOR[2], alpha);
         }
 
         if (state != "done" && highlighted > 0) {
@@ -355,14 +387,20 @@ class Aligner extends MyStuff {
         
         dx = dx + textWidth(ch);
         if (alpha > 0) {
+          noStroke();
           fill(c);
           text(ch, dx+x, y);
+          if (state == "can probe") {
+            noFill(); stroke(32);
+            line(dx+3, y+TEXT_SIZE, dx+textWidth(ch), y+TEXT_SIZE);
+          }
         }
       }
 
       const e = this.puzzle_events[i];
       if (e.length > 0) {
-        fill(color(192,192,244,alpha));
+        const c = PUZZLE_EVENT_COLOR;
+        fill(color(c[0],c[1],c[2],alpha));
         this.puzzle_events[i].forEach((elt) => {
           dx += textWidth(elt);
           text(elt, dx+x, y);
@@ -393,6 +431,26 @@ class Aligner extends MyStuff {
     //rect(g_readalong_layout.x, g_readalong_layout.y, this.w, this.h);
     textAlign(CENTER, TOP);
     text(t, 240, dy+2);
+
+    if (this.is_done) {
+      const completion = map(this.done_fadein_ms, 1000, 0, 0, 1);
+      let donex = W0/2;
+      let doney = H0/2;
+      let donex0 = 0;
+      let donex1 = W0;
+      noStroke();
+      fill(DONE_BG[0], DONE_BG[1], DONE_BG[2]);
+      const halfext = 60;
+      const hw = completion * W0/2;
+      rect(donex - hw, doney - halfext, 2*hw, 2*halfext);
+      fill(DONE_FG[0], DONE_FG[1], DONE_FG[2]);
+      textAlign(CENTER, CENTER);
+      textSize(36);
+      const secs = parseInt((this.timestamp1 - this.timestamp0) / 1000);
+      text("完成！\n用时：" + secs + "秒", donex, doney);
+    } else {
+      this.timestamp1 = millis();
+    }
 
     pop();
   }
@@ -545,6 +603,10 @@ class Aligner extends MyStuff {
   }
 
   OnStopRecording() {
+    console.log("Aligner.OnStopRecording, saved idx:"
+      + this.saved_line_idx + "," + this.saved_char_idx + ", curr idx:"
+      + this.line_idx + "," + this.char_idx);
+    console.trace();
     let idx = 0;
     this.alignments.forEach((a) => {
       const p0 = new p5.Vector(g_recorderviz.x + 3 * a[0], g_recorderviz.y);
@@ -552,30 +614,37 @@ class Aligner extends MyStuff {
       idx ++;
     });
 
-    let cidx = this.saved_char_idx;
-    let lidx = this.saved_line_idx;
-    let pidx = this.saved_pinyin_idx;
-    while (!(cidx == this.char_idx && lidx == this.line_idx && pidx == this.pinyin_idx)) {
-      if (this.puzzle_events_watermark < lidx) {
-        this.puzzle_events_watermark = lidx;
-        this.puzzle_events[lidx].forEach((entry) => {
-          g_puzzle_director.NextStep();
+    // cheat：如果还差3个字以内，就直接跳到终点了
+    if (this.line_idx == this.data.length - 1) {
+      const last_line = this.data[this.data.length - 1];
+      if (this.char_idx >= last_line.length - 3) {
+        this.char_idx = 0; this.pinyin_idx = 0; this.line_idx = this.data.length;
+      }
+    }
+
+    while (this.activation_lidx < this.line_idx) {
+      if (this.activation_lidx >= 0) {
+        this.puzzle_events[this.activation_lidx].forEach((entry) => {
+          g_puzzle_director.NextStep(true);
         });
       }
-      [lidx, cidx, pidx] = this.NextStep(lidx, cidx, pidx);
+      this.activation_lidx ++;
     }
 
     this.saved_char_idx   = this.char_idx;
     this.saved_line_idx   = this.line_idx;
     this.saved_pinyin_idx = this.pinyin_idx;
 
-    this.char_idx = this.saved_char_idx;
-    this.line_idx = this.saved_line_idx;
-    this.pinyin_idx = this.saved_pinyin_idx;
-
     this.probe_lidx = undefined;
     this.probe_cidx = undefined;
     this.probe_pidx = undefined;
+
+    if (this.IsDone()) {
+      if (!this.is_done) {
+        this.is_done = true;
+        this.FadeInDone();
+      }
+    }
   }
 
   OnNewPinyins(newpys) {
@@ -633,7 +702,6 @@ class Aligner extends MyStuff {
   }
 
   do_AllPinyinList(all_pinyins) {
-    this.alignments = [];
     // 用于显示 当前 最远可以 probe 到哪里
     this.probe_cidx = undefined;
     this.probe_lidx = undefined;
@@ -647,6 +715,8 @@ class Aligner extends MyStuff {
     if (lidx_lb == undefined || cidx_lb == undefined || pidx_lb == undefined) {
       return;
     }
+    
+    this.alignments = [];
 
     // 预期说话速度
     let i_watermark = 0;
@@ -692,8 +762,7 @@ class Aligner extends MyStuff {
             const norm_cand = this.NoTonePinyin(cand);
 
             if (norm_target == norm_cand) {
-              console.log("Match: [" + i + "], " + norm_cand + ", " + norm_target + "|" +
-                cand + ", " + target);
+              //console.log("Match: [" + i + "], " + norm_cand + ", " + norm_target + "|" + cand + ", " + target);
               if (char2pyidx[j] <= i) {
                 char2pyidx[j] = i;
                 num_i_matched ++;
@@ -724,6 +793,10 @@ class Aligner extends MyStuff {
   // 从RecorderViz来的，从此次用户按下REC始所识别出的拼音
   // 好处有二：一为可更准确，二是可以将识别结果用作显示反馈
   OnRecogStatus(rs) {
+
+    // 防止松开按钮的瞬间跳变
+    if (g_recorderviz.is_recording == false) return;
+
     let all_pinyins = []; // 下标：时间片（1秒12片）
     const T = 12 / 4; // 因为一次是走四分之一窗口大小(250ms vs 1s)
     for (let i=0; i<rs.length; i++) {
@@ -742,7 +815,6 @@ class Aligner extends MyStuff {
         all_pinyins[t].push(pinyins[j]);
       }
     }
-    console.log(all_pinyins);
     this.do_AllPinyinList(all_pinyins);
   }
   
@@ -846,7 +918,7 @@ class Aligner extends MyStuff {
   }
 
 
-  Update(ms, override_k = undefined) {
+  Update(delta_ms, override_k = undefined) {
     // 聚焦到当前行
     if (this.is_dragging) return;
 
@@ -868,9 +940,17 @@ class Aligner extends MyStuff {
     if (override_k != undefined) {
       k = override_k;
     } else {
-      k = Math.pow(0.95, ms/16);
+      k = Math.pow(0.95, delta_ms/16);
     }
     this.pan_y = lerp(y, this.pan_y, k);
+
+    if (this.done_fadein_ms > 0) {
+      this.done_fadein_ms -= delta_ms;
+    }
+  }
+
+  IsDone() {
+    return (this.line_idx >= this.data.length);
   }
 }
 
@@ -887,6 +967,8 @@ class ReadAlongLayout {
     this.x = 4;
     this.y = ReadAlongLayout.YCOORDS[1];
     this.h = 732 - this.y;
+    g_btn_puzzle_next_step.is_hidden = false;
+    g_btn_puzzle_prev_step.is_hidden = false;
   }
 
   SetFullHeight() {
@@ -895,6 +977,8 @@ class ReadAlongLayout {
     this.x = 4;
     this.w = 470;
     this.h = 732 - this.y;
+    g_btn_puzzle_next_step.is_hidden = true;
+    g_btn_puzzle_prev_step.is_hidden = true;
   }
 
   SwitchMode() {
@@ -951,13 +1035,17 @@ function LoadNextDataset() {
 function LoadMultipleDatasets(title_idxes, title, obj_idx) {
   const data = [];
   let font_size = 40;
+  let idx = 0;
   title_idxes.forEach((i) => {
+    if (idx > 0) {
+      data.push([[],[]]);
+    }
     const passage = DATA[i];
     passage.forEach((line) => {
       data.push(line);
     });
-    data.push([[],[]]);
     font_size = Math.min(font_size, FONT_SIZES[i]);
+    idx ++;
   });
   g_aligner.LoadData(data, title, font_size);
 
@@ -1011,7 +1099,7 @@ function RenderReadAlong(delta_ms) {
   push();
   noFill(); stroke(128);
   const l = g_readalong_layout;
-  rect(l.x, l.y, l.w, l.h);
+  DrawBorderStyle2(l.x, l.y, l.w, l.h);
 
   g_aligner_particle_system.Update(delta_ms);
   g_aligner_particle_system.Render();
