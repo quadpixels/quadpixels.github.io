@@ -121,7 +121,7 @@ async function CreateMyProcessor(ctx, options) {
 
 // Load model, not using web worker
 async function LoadModelNonWorker() {
-
+  g_introscreen.SetMessage("【尝试在主线程中装入tfjs】");
   // Clear status bits
   g_tfjs_use_webworker = undefined;
   g_tfjs_backend = undefined;
@@ -134,6 +134,7 @@ async function LoadModelNonWorker() {
   const ms1 = millis();
   console.log("Model loading took " + (ms1-ms0) + " ms")
 
+  g_introscreen.SetMessage("【预热】");
   g_runningmode_vis.SetInfo("Backend=" + tf.getBackend() + ", pre-heating ..", 2000);
 
   const N = 400;
@@ -156,8 +157,10 @@ async function LoadModelNonWorker() {
 
   // 假定这时已经装入webgl后端了
   if (g_btn_mic.is_enabled == true) {
+    g_introscreen.SetMessage("【装载完成】");
     g_btn_mic.clicked();
     setTimeout(() => {
+      g_introscreen.FadeOut();
       g_stats4nerds.Hide();
     }, 1000);
   }
@@ -171,6 +174,7 @@ async function LoadModelNonWorker() {
 // 2) 主线程里的 WebGL后端
 async function LoadModel() {
   if (window.Worker) {
+    g_introscreen.SetMessage("【尝试在WebWorker中装入tfjs】");
     console.log("Web worker support detected.");
     g_worker = new Worker("myworker.js");
     g_worker.postMessage("Hey!");
@@ -183,6 +187,7 @@ async function LoadModel() {
         g_tfjs_use_webworker = true;
 
         if (g_tfjs_backend == "cpu") {
+          g_introscreen.SetMessage("【似乎WebWorker只能支持CPU后端】");
           g_tfjs_use_webworker = false;
           g_runningmode_vis.SetInfo("Web worker does not appear to work with WebGL backend.\nAttempting to load model without WebWorker ..");
           setTimeout(() => {
@@ -193,17 +198,20 @@ async function LoadModel() {
             LoadModelNonWorker();
           }, 1000);
         } else if (event.data.Loaded == undefined) {
+          g_introscreen.SetMessage("【预热模型】");
           console.log("WebGL backend enabled for Web Worker, initializing model.")
           g_runningmode_vis.SetInfo("WebGL backend enabled for Web Worker, initializing model.");
           g_worker.postMessage({
             "tag": "LoadModel"
           })
         } else if (g_tfjs_backend == "webgl") {
+          g_introscreen.SetMessage("【装载完成】");
           // 同时按下“Mic”按钮
           if (g_btn_mic.is_enabled == true) {
             g_btn_mic.clicked();
             setTimeout(() => {
               g_stats4nerds.Hide();
+              g_introscreen.FadeOut();
             }, 1000);
           }
         }

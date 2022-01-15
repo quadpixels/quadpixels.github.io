@@ -3,6 +3,7 @@ body {
   padding: 0;
   text-align: center;
   overflow: hidden;
+  background-color: rgba(249, 239, 227, 1);
 }
 
 button {

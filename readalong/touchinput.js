@@ -1,7 +1,7 @@
 let g_touch_state, g_touch0_identifier;
 let g_pointer_x, g_pointer_y, g_touch_start_y;
 let g_prev_touch_millis = 0;
-const DEBOUNCE_THRESH = 80;
+const DEBOUNCE_THRESH = 20;
 let g_prev_touch_start_milis = 0;
 const TEMP_DISABLE_MOUSE_THRESH = 2000; // 触摸后在这么长的时间内，忽略鼠标事件
 let g_last_mouse_pos = [-999, -999];
@@ -27,13 +27,16 @@ function TouchOrMouseStarted(event) {
     g_viewport_drag_y_ms = g_viewport_drag_x_ms = ms;
     g_prev_touch_start_milis = ms;
 
+    g_hovered_button = undefined;
+    
     if (ms - g_prev_touch_millis > DEBOUNCE_THRESH) {
       const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
       //g_pathfinder_viz.result = "TouchStarted " + mx + " " + my;
-      g_buttons.forEach((b) => { // TODO: 为什么需要在这里再加一下
+      ForAllButtons((b) => { // TODO: 为什么需要在这里再加一下
         b.do_Hover(mx, my);
         if (b.is_hovered) {
           b.OnPressed();
+          g_hovered_button = b;
         }
       })
     }
@@ -71,7 +74,7 @@ function TouchOrMouseStarted(event) {
         g_puzzle_director.StartDrag(mx, my);
       }
 
-      g_buttons.forEach((b) => {
+      ForAllButtons((b) => {
         b.Hover(mx, my);
         if (b.is_hovered) {
           b.OnPressed();
@@ -98,6 +101,11 @@ function TouchOrMouseEnded(event) {
           
           g_aligner.EndDrag();
           g_puzzle_director.EndDrag();
+
+          ForAllButtons((b) => {
+            b.Unhover();
+          })
+          g_hovered_button = undefined;
         }
       }
     }
@@ -117,8 +125,8 @@ function TouchOrMouseMoved(event) {
   if (g_touch_state == "touch" && event instanceof TouchEvent) {
     for (let t of event.changedTouches) {
       if (t.identifier == g_touch0_identifier) {
-        g_pointer_x = t.clientX;
-        g_pointer_y = t.clientY;
+        g_pointer_x = t.clientX - canvas.offsetLeft;
+        g_pointer_y = t.clientY - canvas.offsetTop;
         
         g_viewport_drag_y_last = g_viewport_drag_y;
         g_viewport_drag_y_ms = millis();

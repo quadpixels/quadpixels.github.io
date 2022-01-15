@@ -1,6 +1,7 @@
 // 2021-10-09
 // audio stuff
 
+const COLOR_BACKGROUND = "rgba(249, 239, 227, 1)";
 const COLOR0 = "rgba(167,83,90,1)"; // 满江红
 const COLOR1 = "rgba(238,162,164,1)" // 牡丹粉红
 const COLOR_FFTBARS = "rgba(238,162,164,1)" // 牡丹粉红
@@ -81,10 +82,29 @@ var g_btn_load_model, g_btn_predict;
 var g_btn_wgt_add, g_btn_wgt_sub, g_btn_frameskip_add, g_btn_frameskip_sub;
 var g_btn_puzzle_mode;
 
-function VerticalLayout() {
-
+// 遍历所有按钮
+// 注意！包括不在 g_buttons 中的按钮
+function do_ForAllButtons(elt, callback) {
+  if (elt instanceof Button) {
+    callback(elt);
+  }
+  if (elt.children instanceof Array) {
+    elt.children.forEach((c) => {
+      do_ForAllButtons(c, callback);
+    })
+  }
+}
+function ForAllButtons(callback) {
+  g_buttons.forEach((b) => {
+    callback(b);
+  })
+  do_ForAllButtons(g_stats4nerds, callback);
+  if (g_levelselect.visible) {
+    do_ForAllButtons(g_levelselect, callback);
+  }
 }
 
+// TODO: 以下这两个是用于画图的，还没有用于变换touch事件
 var g_ui_translate_x = 0, g_ui_translate_y = 0;
 class MyStuff {
   constructor() {
@@ -106,6 +126,7 @@ class MyStuff {
 
   Render() {
     if (this.is_hidden == true) return;
+    if (this.parent && this.parent.visible == false) return;
     this.Push();
     this.do_Render();
     if (this.children != undefined) {
@@ -114,6 +135,10 @@ class MyStuff {
       })
     }
     this.Pop();
+  }
+
+  do_Render() {
+    // NOP
   }
 
   SetParent(p) {
@@ -136,6 +161,17 @@ class MyStuff {
 
   Hover(mx, my) {
 
+  }
+
+  // 回溯到UI树的顶端，看自己的 translation 是多少
+  GetParentTranslate() {
+    let ret = new p5.Vector();
+    let p = this.parent;
+    while (p != undefined) {
+      ret.x += p.x; ret.y += p.y;
+      p = p.parent;
+    }
+    return ret;
   }
 }
 
@@ -300,6 +336,7 @@ class RecorderViz extends MyStuff {
     this.is_recording = false;
     this.x = 16;
     this.y = 680;
+    this.w = 448;
     this.window_delta = 10; // ms
     this.graph.clear();
     this.start_record_ms = 0;
@@ -309,9 +346,11 @@ class RecorderViz extends MyStuff {
     this.window_offset = 0;
     this.window_delta = 25;
     this.window_width = 100;
+    this.num_windows_in_flight = 0; //有多少个窗口的数据需要识别
 
     this.recog_status = [];
-    this.recog_decodes = [];
+    this.recog_decode_timestamps = [];
+    this.recog_decode_per_bin = [];
     this.serial = 0;
     this.start_serial = 0; // 此次StartRecording时的serial
 
@@ -324,24 +363,31 @@ class RecorderViz extends MyStuff {
     this.buffer = [];
     this.energy_readings = [];
     this.recog_status = [];
-    this.recog_decodes = [];
+    this.recog_decode_timestamps = [];
+    this.recog_decode_per_bin = [];
     this.duration_ms = 0;
+    this.num_windows_in_flight = 0;
     if (this.graph != undefined)
       this.graph.clear();
   }
 
   StartRecording() {
+    if (g_levelselect.visible || g_introscreen.visible) return;
+
     this.graph.clear();
     this.is_recording = true;
-    this.buffer = [];
-    this.energy_readings = [];
-    this.recog_decodes = [];
-    this.recog_status = [];
+
+    this.Clear();
+
     this.start_record_ms = millis();
-    this.window_offset = 0;
+    this.window_offset = 0;  // 当前需要decode的窗偏移了几个FFT样本
     this.start_serial = this.serial;
     g_audio_context.resume();
     frameRate(FRAMERATE_RECORDING);
+
+    
+    // 将Aligner的开始点设为现在
+    g_aligner.OnStartRecording();
   }
 
   myMap(x) {
@@ -387,6 +433,10 @@ class RecorderViz extends MyStuff {
     this.is_recording = false;
     this.duration_ms = millis() - this.start_record_ms;
     frameRate(FRAMERATE_NORMAL);
+
+    if (this.IsAllDone()) {
+      g_aligner.OnStopRecording();
+    }
   }
 
   ShouldAddFFT() {
@@ -433,7 +483,7 @@ class RecorderViz extends MyStuff {
           const ms1 = millis();
 
           // 1:已经预测完了
-          this.recog_status.push([]);
+          this.recog_status.push(undefined);
 
           temp0array = []; // for ctc
           const T = temp0.shape[1];
@@ -464,10 +514,12 @@ class RecorderViz extends MyStuff {
         }
       }
       this.window_offset += this.window_delta;
+      this.num_windows_in_flight ++;
     }
   }
 
   async do_Render() {
+    const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
     push();
     noStroke();
     
@@ -501,8 +553,9 @@ class RecorderViz extends MyStuff {
       }
     }
 
-    if (w1 > W0) {
-      scale(W0/w1, 1);
+    let scale_x = 1;
+    if (w > this.w) {
+      scale_x = this.w / w;
     }
 
     // Draw pred status
@@ -521,12 +574,6 @@ class RecorderViz extends MyStuff {
     // }
     // dy += 6;
 
-    strokeWeight(3);
-    this.recog_decodes.forEach((ts) => {
-      point(ts, dy);
-    })
-    strokeWeight(1);
-
     if (this.draw_fft) {
       image(this.graph, 0, dy+8);
       noFill();
@@ -538,7 +585,56 @@ class RecorderViz extends MyStuff {
       dy += h;
     }
 
+    const soundbar_h = 36;
+    // 画出边框
+    fill("rgba(255,255,255,0.7)");
+    stroke(128);
+    rect(0, 0, this.w, soundbar_h);
+
+    let is_hovered = false;
+    if (mx >= this.x && my >= this.y &&
+        mx <= this.x + this.w && 
+        my <= this.y + soundbar_h) {
+      is_hovered = true;
+    }
+
+    stroke(0);
+    
+    if (is_hovered) {
+      const step = this.window_delta * scale_x;
+      const wwid = this.window_width * scale_x;
+      const hover_widx = parseInt((mx - this.x) / step);
+      let dx = hover_widx * step;
+      let dwwid = min(wwid, this.w-dx);
+      if (hover_widx < this.recog_status.length) {
+        stroke("#33F");
+        fill("rgba(32,32,255,0.2)");
+        rect(dx, 0, dwwid, soundbar_h);
+
+        textAlign(LEFT, TOP);
+        noStroke();
+        fill("#00F");
+        const T = 12; // 见myworker.js
+        text(this.recog_status[hover_widx][0], dx, soundbar_h);
+        stroke("#33F");
+        strokeWeight(3);
+        this.recog_status[hover_widx][1].forEach((local_offset) => {
+          const timestamp = this.window_delta * hover_widx + (0.5+local_offset)*this.window_width/T;
+          point(scale_x * timestamp, dy+4);
+        });
+      } else {
+        stroke("#333");
+        fill("rgba(128,128,128,0.2)");
+        rect(dx, 0, dwwid, soundbar_h);
+      }
+    }
+
+    stroke(128);
+    noFill();
+    strokeWeight(2);
     if (this.draw_energy) {
+      push();
+      scale(scale_x, 1);
       let lx = 0, ly = dy + 20;
       const step = 4;
       for (let i=0; i<this.energy_readings.length; i += step) {
@@ -548,7 +644,31 @@ class RecorderViz extends MyStuff {
         lx += step;
         line(lx, dy0, lx, dy1);
       }
-      dy += 36;
+      pop();
+    }
+    
+    {
+      push();
+      strokeWeight(3);
+      this.recog_decode_timestamps.forEach((ts) => {
+        point(ts * scale_x, dy+2);
+      })
+
+      if (is_hovered) {
+        // 只有Hover了才标注数目
+        noStroke();
+        fill(32);
+        textAlign(CENTER, BOTTOM);
+        const T = 12; // 参见worker.js
+        for (let bin_idx = 0; bin_idx < this.recog_decode_per_bin.length; bin_idx ++) {
+          const count = this.recog_decode_per_bin[bin_idx];
+          if (count > 0) {
+            const dx = this.window_width / T * (0.5 + bin_idx);
+            text(count, dx * scale_x, dy-2);
+          }
+        }
+      }
+      pop();
     }
 
     pop();
@@ -560,17 +680,35 @@ class RecorderViz extends MyStuff {
   // timestamps为该输入内的 timestamp
   OnDecodedAndAligned(serial, decoded, timestamps) {
     let offset = serial - this.start_serial;
-    if (offset < this.recog_status.length) {
-      this.recog_status[offset] = 2;
+    if (offset <=this.recog_status.length) {
+      this.recog_status[offset] = [decoded, timestamps];
     }
 
-    console.log(timestamps)
     // 这一个预测输入 在这一轮录音中的开始时间戳
     offset = (serial - this.start_serial) * this.window_delta;
     timestamps.forEach((t) => {
       // 因为CTC风格中 一列 是 10ms，而此处 画图时 1象素=1ms，所以要乘以10
-      this.recog_decodes.push(offset + t * 10);
+      const T = 12; // 见myworker.js，一个窗口（1s）切成12份
+      const timestamp = offset + (t+0.5) * (this.window_width / T);
+      this.recog_decode_timestamps.push(timestamp);
+
+      const bin_index = parseInt(timestamp / (this.window_width / T));
+      while (this.recog_decode_per_bin.length <= bin_index) {
+        this.recog_decode_per_bin.push(0);
+      }
+      this.recog_decode_per_bin[bin_index] ++;
     });
+
+    this.num_windows_in_flight --;
+
+    // 完成了所有堆积的工作，将录音按钮设为可用，并且如果现在没有按下，就把Aligner的这个批次终止
+    if (this.IsAllDone()) {
+      g_btn_rec.is_enabled = true;
+    }
+  }
+
+  IsAllDone() {
+    if (this.num_windows_in_flight <= 0) return true; else return false;
   }
 }
 
@@ -588,6 +726,8 @@ class Button extends MyStuff {
     this.released = function() {}
     this.txt = txt;
     this.border_style = 2;
+    this.checked = false;
+    this.text_size = undefined;
   }
   do_Render() {
     if (!this.is_enabled) {
@@ -597,21 +737,25 @@ class Button extends MyStuff {
     push();
 
     let c = color(48, 48, 48);
-    let f = color(255, 255, 255, 192);
+    let f = color(212, 170, 110, 192);
     if (!this.is_enabled) {
       c = "#777";
       f = color(128, 128, 128, 192);
     } else {
       if (!this.is_hovered) {
         c = color(48, 48, 48);
-        f = color(255, 255, 255, 192);
+        if (this.checked) {
+          f = color(193, 84, 71, 192);
+        } else {
+          f = color(212, 170, 110, 192);
+        }
       } else {
         if (this.is_pressed) {
           c = color(56, 32, 32); // 高粱红
           f = color(192, 44, 56, 192);
         } else {
           c = color(56, 32, 32); // 莓红
-          f = color(255, 255, 255, 192);
+          f = color(255, 240, 240, 192);
         }
       }
     }
@@ -632,18 +776,29 @@ class Button extends MyStuff {
     }
 
     fill(c);
-    textSize(Math.max(14, h / 3));
+    if (this.text_size != undefined) {
+      textSize(this.text_size);
+    } else {
+      textSize(Math.max(14, this.h/3));
+    }
+
     textAlign(CENTER, CENTER);
     noStroke();
     text(this.txt, w/2, h/2);
     pop();
   }
   do_Hover(mx, my) {
+    const parent_xy = this.GetParentTranslate();
+    
     if (this.IsHidden()) {
       this.is_hovered = false;
     }
-    mx = mx - g_ui_translate_x;
-    my = my - g_ui_translate_y;
+
+    mx -= g_ui_translate_x;
+    my -= g_ui_translate_y;
+    mx -= parent_xy.x;
+    my -= parent_xy.y;
+
     if (!this.is_enabled) return;
     if (mx >= this.x          && my >= this.y &&
         mx <= this.x + this.w && my <= this.y + this.h) {
@@ -652,13 +807,14 @@ class Button extends MyStuff {
       this.is_hovered = false;
     }
   }
+  Unhover() {
+    this.is_hovered = false;
+  }
   OnPressed() {
     if (!this.is_enabled) return;
     if (!this.is_pressed) {
       this.is_pressed = true;
-      console.log("this.clicked");
       this.clicked();
-      console.trace();
     }
   }
   OnReleased() {
@@ -1049,7 +1205,8 @@ var graph_mfcc0, graph_diff;
 var g_moving_window_vis;
 var g_frameskip_vis;
 var g_runningmode_vis, g_stats4nerds;
-
+var g_introscreen, g_levelselect;
+var g_game_ui_node;
 var soundReady = true;
 
 var normalized = [];
@@ -1078,8 +1235,13 @@ let g_buttons = [];
 function OnPredictionResult(res) {
   const d = res.data;
   g_pathfinder_viz.SetResult(d.Decoded, d.PredictionTime, d.DecodeTime);
-  OnNewPinyins(d.Decoded.split(" "));
+  //OnNewPinyins(d.Decoded.split(" "));
   g_recorderviz.OnDecodedAndAligned(d.serial, d.Decoded, d.decode_timestamp)
+  g_aligner.OnRecogStatus(g_recorderviz.recog_status);
+
+  if (this.is_recording == false) {
+    g_aligner.OnStopRecording();
+  }
 }
 
 // For moving window stuff
@@ -1134,6 +1296,7 @@ function ResetWeightMask() {
 }
 
 async function setup() {
+  g_game_ui_node = new MyStuff();
   // Setup window stuff
   for (let i=0; i<PINYIN_LIST.length; i++) {
     let p = PINYIN_LIST[i];
@@ -1195,6 +1358,9 @@ async function setup() {
   }
   g_btn_rec.released = function() {
     g_recorderviz.StopRecording();
+    if (!g_recorderviz.IsAllDone()) {
+      g_recorderviz.is_enabled = false;
+    }
   }
   g_buttons.push(g_btn_rec);
 
@@ -1422,6 +1588,15 @@ async function setup() {
   setTimeout(() => {
     g_btn_load_model.clicked();
   }, 1000);
+
+  g_introscreen = new IntroScreen();
+  g_levelselect = new LevelSelect();
+
+  // 设置UI层次关系
+  g_stats4nerds.SetParent(g_game_ui_node);
+  g_buttons.forEach((b) => {
+    b.SetParent(g_game_ui_node);
+  })
 }
 
 function draw() {
@@ -1435,9 +1610,10 @@ function draw() {
   } else {
     delta_ms = (ms - g_last_draw_ms);
     g_animator.Update(delta_ms);
+    g_introscreen.Update(delta_ms);
   }
 
-  background(255);
+  background(COLOR_BACKGROUND);
   textSize(12);
   push();
   scale(g_scale);
@@ -1453,7 +1629,7 @@ function draw() {
   let has_hovered_buttons = false;
   g_hovered_button = undefined;
 
-  g_buttons.forEach((b) => {
+  ForAllButtons((b) => {
     b.do_Hover(mx, my);
     if (b.is_hovered) {
       has_hovered_buttons = true;
@@ -1473,14 +1649,13 @@ function draw() {
   noStroke();
   if (soundReady) { }
 
-  // 触摸单独在这里另外处理
-  g_buttons.forEach((b) => {
-    b.Render();
-  })
+  //g_buttons.forEach((b) => {
+  //  b.Render();
+  //})
 
   g_recorderviz.Render();
-  
-  g_stats4nerds.Render();
+  g_game_ui_node.Render();
+  //g_stats4nerds.Render();
 
   // ====================================================================
 
@@ -1493,16 +1668,25 @@ function draw() {
   line(mx - l, my, mx + l, my);
   line(mx, my - l, mx, my + l);
 
+  g_levelselect.Render();
+
+  // Intro UI
+  g_introscreen.Render();
+
   pop();
 
-  push();
-  noStroke();
-  fill(192);
-  textAlign(LEFT, TOP);
-  text(parseInt(width) + "x" + parseInt(height) + "x" + g_scale.toFixed(2) + " " + windowWidth + "x" + windowHeight, 1, 1);
+  if (false) {
+    push();
+    noStroke();
+    fill(192);
+    textAlign(LEFT, TOP);
+    text(parseInt(width) + "x" + parseInt(height) + "x" + g_scale.toFixed(2) + "\n"
+      + windowWidth + "x" + windowHeight + "\n"
+      + g_touch_state, 1, 1);
 
 
-  pop();  // end scale
+    pop();  // end scale
+  }
 
   g_frame_count ++;
   g_last_draw_ms = ms;
@@ -1569,9 +1753,7 @@ function keyPressed() {
     g_textarea.value(txt);
   }
   
-  {
-    ReadAlongKeyPressed(key, keyCode);
-  }
+  ReadAlongKeyPressed(key, keyCode);
 }
 
 function keyReleased() {
@@ -1593,13 +1775,13 @@ function mousePressed(event) {
 
 function touchEnded(event) {
   TouchOrMouseEnded(event);
-  g_buttons.forEach((b) => {
+  ForAllButtons((b) => {
     b.OnReleased();
   });
 }
 function mouseReleased(event) {
   TouchOrMouseEnded(event);
-  g_buttons.forEach((b) => {
+  ForAllButtons((b) => {
     b.OnReleased();
   });
 }

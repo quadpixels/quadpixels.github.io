@@ -77,10 +77,15 @@ onmessage = async function(event) {
     const temp0 = await g_model.predictOnBatch(tb.toTensor());
     const ms1 = millis();
 
+    // 关于T
     // Decode
     temp0array = []; // for ctc
     const T = temp0.shape[1];
     const S = temp0.shape[2];
+    
+    //console.log("T="+ T + ", N=" + N)
+    // T=12, N=100
+
     let src = temp0.slice([0, 0, 0], [1, T, S]).dataSync();
     for (let t=0; t<T; t++) {
       let line = [];
@@ -109,7 +114,7 @@ onmessage = async function(event) {
       "serial": event.data.serial,
       "Decoded": out,
       "timestamp": event.data.timestamp,  // 本次预测的数据包的时间戳
-      "decode_timestamp": blah[1], // 逐字时间戳
+      "decode_timestamp": blah[1].slice(), // 逐字时间戳
     });
   } else if (event.data.tag == "weight_mask") {
     weight_mask = event.data.weight_mask;
