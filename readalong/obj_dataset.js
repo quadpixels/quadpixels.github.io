@@ -1,3 +1,11 @@
+const OBJ_KEYS = [
+  "stc93",
+  "stc78c",
+  "stc78a",
+  "stc29",
+  "stc29_rabbit"
+]
+
 const OBJ_DATASET = {
   
   // Coffin's Quartet (STC #93)
@@ -23,10 +31,4 @@ const OBJ_DATASET = {
     "objs": [ "stc29_1.obj", "stc29_2.obj", "stc29_3.obj", "stc29_4.obj", "stc29_5.obj", "stc29_6.obj" ],
     "texture": undefined
   },
-
-  "stc29_rabbit": {
-    "objs": [ "stc29_rabbit_1.obj", "stc29_rabbit_2.obj", "stc29_rabbit_3.obj",
-              "stc29_rabbit_4.obj", "stc29_rabbit_5.obj", "stc29_rabbit_6.obj" ],
-    "texture": undefined
-  }
 }

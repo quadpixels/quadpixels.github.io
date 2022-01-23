@@ -348,7 +348,7 @@ class Aligner extends MyStuff {
             state = "not done";
           }
         } else {
-          if (this.CompareLineAndCharIdxes(i, cidx, this.line_idx, this.char_idx) < 0) {
+          if (this.CompareLineAndCharIdxes(i, cidx, this.line_idx, this.char_idx) <= 0) {
             state = "tentative";
           } else {
             state = "not done";
@@ -793,10 +793,6 @@ class Aligner extends MyStuff {
   // 从RecorderViz来的，从此次用户按下REC始所识别出的拼音
   // 好处有二：一为可更准确，二是可以将识别结果用作显示反馈
   OnRecogStatus(rs) {
-
-    // 防止松开按钮的瞬间跳变
-    if (g_recorderviz.is_recording == false) return;
-
     let all_pinyins = []; // 下标：时间片（1秒12片）
     const T = 12 / 4; // 因为一次是走四分之一窗口大小(250ms vs 1s)
     for (let i=0; i<rs.length; i++) {
@@ -821,7 +817,7 @@ class Aligner extends MyStuff {
   Reset() {
     this.line_idx = 0;
     this.prev_line_idx = 0;
-    this.char_idx = 0;
+    this.char_idx = -1;
     this.pinyin_idx = 0;
     this.pan_y = 0;
     this.start_drag_my = 0;
@@ -830,6 +826,9 @@ class Aligner extends MyStuff {
     this.saved_pinyin_idx = undefined;
     this.saved_line_idx = undefined;
     this.saved_char_idx = undefined;
+    this.is_done = false;
+    this.timestamp0 = millis();
+    this.timestamp1 = millis();
   }
 
   do_NextStep() {
@@ -1050,7 +1049,7 @@ function LoadMultipleDatasets(title_idxes, title, obj_idx) {
   g_aligner.LoadData(data, title, font_size);
 
   if (obj_idx != -999) {
-    let plabel = Object.keys(OBJ_DATASET)[obj_idx];
+    let plabel = OBJ_KEYS[obj_idx];
     LoadPuzzleDataset(plabel);
     g_aligner.SpawnPuzzleEventLabels(g_puzzle_vis.objects.length);
     g_readalong_layout.SetHalfHeight();

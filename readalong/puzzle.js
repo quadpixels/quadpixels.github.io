@@ -24,6 +24,7 @@ let g_rot_inertia = [0, 0];
 function preload() {
   Object.values(OBJ_DATASET).forEach((entry) => {
     entry.objs.forEach((objname) => {
+      console.log(objname);
       const m = loadModel("objs/" + objname);
       g_models[objname] = m;
     })

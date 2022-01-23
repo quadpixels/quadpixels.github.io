@@ -103,7 +103,8 @@ class LevelSelect extends MyStuff {
     super();
     this.visible = true;
 
-    this.btn_levels_y = 120;
+    this.btn_modes_y = 120;
+    this.btn_levels_y = 200;
     this.btn_poems_y = 300;
     
 
@@ -115,7 +116,6 @@ class LevelSelect extends MyStuff {
     this.title_idx_ub = this.btn_titles.length - 1; // Inclusive
     
 
-    this.UpdateTitles();
     this.num_sentences = 0;
 
     this.preview_text = "";
@@ -151,22 +151,50 @@ class LevelSelect extends MyStuff {
   Init() {
     this.btn_puzzles = [];
     this.btn_titles = [];
+    this.btn_modes = [];
     this.selected_title_idxes = [];
     this.btn_prevpage = undefined;
     this.btn_nextpage = undefined;
     this.btn_start = undefined;
-    this.btn_practice = undefined;
     this.btn_rabbit_mode = undefined;
+    this.game_mode = "practice";
 
-    const btn_w = 66, btn_h = 100, btn_margin_x = 20, btn_margin_y = 10;
+    let btn_w = 200, btn_h = 48, btn_margin_x = 10, btn_margin_y = 10;
+    // 选取模式
+    let b = new Button("朗读");
+    b.x = W0/2 - btn_margin_x/2 - btn_w;
+    b.w = btn_w; b.h = btn_h; b.y = this.btn_modes_y;
+    this.btn_modes.push(b);
+    b.SetParent(this);
+    b.text_size = 26;
+    b.clicked = () => {
+      this.game_mode = "practice";
+      this.UpdateTitles();
+    }
 
-    // 选取关卡用的
+    b = new Button("朗读+拼图");
+    b.x = W0/2 + btn_margin_x/2;
+    b.w = btn_w; b.h = btn_h; b.y = this.btn_modes_y;
+    this.btn_modes.push(b);
+    b.SetParent(this);
+    b.text_size = 22;
+    b.clicked = () => {
+      this.game_mode = "puzzle";
+      this.UpdateTitles();
+    }
+
+    btn_w = 72; btn_h = 32; btn_margin_x = 10; btn_margin_y = 10;
+
+    // 选取关卡
     const btn_levels_y = this.btn_levels_y;
-    const btn_levels = [ "壹\n號", "貳\n號", "叁\n號", "肆\n號", "肆號\n兔子\n模式" ];
+    const btn_levels = [ "壹號", "貳號", "叁號", "肆號" ];
     const N = btn_levels.length;
-    let tot_w = btn_margin_x * (N-1) + btn_w * N;
+    textSize(20);
+    const tw = textWidth("拼图选择：");
+    let tot_w = btn_margin_x * (N-1) + btn_w * N + tw;
+    let x0 = W0/2 - tot_w/2 + tw;
 
-    for (let x = W0/2 - tot_w/2, i=0; i<N; x+=(btn_w+btn_margin_x), i++) {
+    for (let x = x0, i=0; i<N; x+=(btn_w+btn_margin_x), i++) {
       const b = new Button(btn_levels[i]);
       b.w = btn_w; b.h = btn_h; b.x = x; b.y = btn_levels_y;
       b.checked = false;
@@ -183,8 +211,10 @@ class LevelSelect extends MyStuff {
     }
 
     // 兔子模式按钮的字弄小一点
-    this.btn_rabbit_mode = this.btn_puzzles[4];
-    this.btn_rabbit_mode.text_size = 24;
+    if (this.btn_puzzles.length >= 5) {
+      this.btn_rabbit_mode = this.btn_puzzles[4];
+      this.btn_rabbit_mode.text_size = 18;
+    }
 
     const btn_title_w = 220, btn_title_h = 50;
     tot_w = btn_margin_x + 2 * btn_title_w;
@@ -221,7 +251,7 @@ class LevelSelect extends MyStuff {
     const pad = 30;
 
     let x = btn_title_x0;
-    let b = new Button("<< 上一页");
+    b = new Button("<< 上一页");
     b.w = btn_title_w - pad; b.h = btn_title_h; b.x = x; b.y = y;
     b.clicked = () => {
       this.PrevPage();
@@ -239,27 +269,16 @@ class LevelSelect extends MyStuff {
     this.btn_nextpage = b;
 
     // 开始游戏按钮
-    b = new Button("开始\n解谜");
+    b = new Button("开始");
     b.w = 200;
     b.h = 80;
-    b.x = W0/2 + 22;
+    b.x = W0/2 - b.w/2;
     b.y = 740;
     b.SetParent(this);
     b.clicked = () => {
       this.StartGame(true);
     }
     this.btn_start = b;
-    
-    b = new Button("练习");
-    b.w = 110;
-    b.h = 80;
-    b.x = W0/2 - b.w - 42;
-    b.y = 740;
-    b.SetParent(this);
-    b.clicked = () => {
-      this.StartGame(false);
-    }
-    this.btn_practice = b;
   }
 
   NextPage() {
@@ -308,15 +327,38 @@ class LevelSelect extends MyStuff {
     }
 
     // 可否激活兔子模式？
-    this.btn_start.is_enabled  = (this.num_sentences >= THRESHOLD_START);
-    this.btn_rabbit_mode.is_enabled = (this.num_sentences >= THRESHOLD_RABBIT);
-    if (this.num_sentences < THRESHOLD_RABBIT) {
-      this.btn_rabbit_mode.checked = false;
-    }
-    this.btn_practice.is_enabled = (this.num_sentences > 0);
+    //this.btn_start.is_enabled  = (this.num_sentences >= THRESHOLD_START);
+    //this.btn_rabbit_mode.is_enabled = (this.num_sentences >= THRESHOLD_RABBIT);
+    //if (this.num_sentences < THRESHOLD_RABBIT) {
+    //  this.btn_rabbit_mode.checked = false;
+    //}
+    //this.btn_practice.is_enabled = (this.num_sentences > 0);
 
-    if (this.ChosenPuzzleIdx() == -999) {
-      this.btn_start.is_enabled = false;
+    if (this.game_mode == "practice") {
+      this.btn_start.is_enabled = true;
+    } else {
+      if (this.ChosenPuzzleIdx() == -999) {
+        this.btn_start.is_enabled = false;
+      } else {
+        if (this.num_sentences >= 8) {
+          this.btn_start.is_enabled = true;
+        }
+      }
+    }
+
+    if (this.game_mode == "practice") {
+      this.btn_puzzles.forEach((b) => {
+        b.is_enabled = false;
+      })
+      this.chosen_puzzle_idx = -999;
+      this.btn_modes[0].checked = true;
+      this.btn_modes[1].checked = false;
+    } else {
+      this.btn_puzzles.forEach((b) => {
+        b.is_enabled = true;
+      })
+      this.btn_modes[0].checked = false;
+      this.btn_modes[1].checked = true;
     }
   }
 
@@ -373,20 +415,22 @@ class LevelSelect extends MyStuff {
     textAlign(CENTER, CENTER);
     text("第" + pageidx + "/" + np + "页", W0/2,
       this.btn_nextpage.y + this.btn_nextpage.h/2);
-
+    textAlign(RIGHT, CENTER);
+    const bp0 = this.btn_puzzles[0];
+    text("拼图选择：", bp0.x - 5, bp0.y + bp0.h/2);
+    
     textSize(30);
 
     fill(169, 58, 39);
     textAlign(CENTER, BOTTOM);
-    text("一、选一副拼图", W0/2, this.btn_levels_y - 20);
-    text("二、选择若干朗读篇目", W0/2, this.btn_poems_y - 20);
+    text("一、选择模式", W0/2, this.btn_modes_y - 20);
+    text("二、选择篇目", W0/2, this.btn_poems_y - 20);
     textAlign(RIGHT, CENTER);
-    text("三、", this.btn_practice.x, this.btn_start.y + this.btn_start.h/2);
-    text("或", W0/2, this.btn_start.y + this.btn_start.h/2);
+    text("三、", this.btn_start.x, this.btn_start.y + this.btn_start.h/2);
 
-    const LEVEL_BAR_X0 = 4;
-    let LEVEL_BAR_WIDTH = 8;
-    let LEVEL_BAR_GAP = 16;
+    const LEVEL_BAR_X0 = 4 + textWidth("句数：");
+    let LEVEL_BAR_WIDTH = 5;
+    let LEVEL_BAR_GAP = 10;
     const LEVEL_BAR_H = 20;
     const LEVEL_BAR_Y = this.btn_poems_y - 10;
     const pad0 = 4, pad1 = 8;
@@ -397,37 +441,46 @@ class LevelSelect extends MyStuff {
       LEVEL_BAR_WIDTH = LEVEL_BAR_GAP/2
     }
 
-    const breaks = [THRESHOLD_START, THRESHOLD_RABBIT];
-    const break_descs = ["至少需要8句\n才能拼图", "20句可开启\n兔子模式"];
-    let break_xs = [];
-    for (let i=0; i<breaks.length; i++) {
-      const x1 = LEVEL_BAR_X0 + LEVEL_BAR_GAP * breaks[i] -
-        (LEVEL_BAR_GAP - LEVEL_BAR_WIDTH) / 2;
-      break_xs.push(x1);
+    let breaks = [], break_descs = [];
+    if (this.game_mode == "puzzle") {
+      breaks = [THRESHOLD_START, THRESHOLD_RABBIT];
+      break_descs = ["至少需要8句\n才能拼图"];//, "20句可开启\n兔子模式"];
+    } else {
+      breaks = [8, 16, 24, 32];
+      break_descs = [ "8", "16", "24", "32" ];
     }
-    let overlapped = false;
+
     const BREAKS_Y = LEVEL_BAR_Y + LEVEL_BAR_H + pad1 + 4;
-    textSize(20);
-    textAlign(CENTER, TOP);
-    for (let i=0; i<break_xs.length - 1; i++) {
-      const x0 = break_xs[i], x1 = break_xs[i+1];
-      const tw0 = textWidth(break_descs[i]);
-      const tw1 = textWidth(break_descs[i+1])
-      if (x1-x0 <= (tw0+tw1)/2) {
-        overlapped = true; break;
+    {
+      let break_xs = [];
+      for (let i=0; i<breaks.length; i++) {
+        const x1 = LEVEL_BAR_X0 + LEVEL_BAR_GAP * breaks[i] -
+          (LEVEL_BAR_GAP - LEVEL_BAR_WIDTH) / 2;
+        break_xs.push(x1);
       }
-    }
-    for (let i=0; i<breaks.length; i++) {
-      noFill();
-      stroke(166, 129, 48);
-      const x1 = break_xs[i];
-      line(x1, LEVEL_BAR_Y - pad0, x1, LEVEL_BAR_Y + LEVEL_BAR_H + pad1);
-      noStroke();
-      fill(166, 129, 48);
-      if (!overlapped) {
-        text(break_descs[i], x1, BREAKS_Y);
-      } else {
-        text("" + breaks[i], x1, BREAKS_Y);
+      let overlapped = false;
+      textSize(20);
+      textAlign(CENTER, TOP);
+      for (let i=0; i<break_xs.length - 1; i++) {
+        const x0 = break_xs[i], x1 = break_xs[i+1];
+        const tw0 = textWidth(break_descs[i]);
+        const tw1 = textWidth(break_descs[i+1])
+        if (x1-x0 <= (tw0+tw1)/2) {
+          overlapped = true; break;
+        }
+      }
+      for (let i=0; i<breaks.length; i++) {
+        noFill();
+        stroke(166, 129, 48);
+        const x1 = break_xs[i];
+        line(x1, LEVEL_BAR_Y - pad0, x1, LEVEL_BAR_Y + LEVEL_BAR_H + pad1);
+        noStroke();
+        fill(166, 129, 48);
+        if (!overlapped) {
+          text(break_descs[i], x1, BREAKS_Y);
+        } else {
+          text("" + breaks[i], x1, BREAKS_Y);
+        }
       }
     }
 
@@ -447,15 +500,18 @@ class LevelSelect extends MyStuff {
 
     fill(169, 58, 39);
     textSize(20);
+    textAlign(RIGHT, CENTER);
+    text("句数：", LEVEL_BAR_X0, LEVEL_BAR_Y + LEVEL_BAR_H / 2);
+    
     textAlign(LEFT, CENTER);
-    text(this.num_sentences + "句",
+    text(this.num_sentences + "",
       LEVEL_BAR_X0 + LEVEL_BAR_GAP*this.num_sentences,
       LEVEL_BAR_Y + LEVEL_BAR_H / 2);
 
     // 如果太多了的话就提示一下
     textAlign(RIGHT, TOP);
     if (this.num_sentences >= 50) {
-      text("哇！会不会有点多呀！",
+      text("哇！会不会\n有点多呀！",
       W0 - 4,
       BREAKS_Y);
     }
