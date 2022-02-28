@@ -527,6 +527,15 @@ class RecorderViz extends MyStuff {
     }
   }
 
+  ScaleX() {
+    let scale_x = 1;
+    const w = this.buffer.length;
+    if (w > this.w) {
+      scale_x = this.w / w;
+    }
+    return scale_x;
+  }
+
   async do_Render() {
     const mx = g_pointer_x / g_scale, my = g_pointer_y / g_scale;
     push();
@@ -566,10 +575,7 @@ class RecorderViz extends MyStuff {
       text(txt, 0, dy);
     }
 
-    let scale_x = 1;
-    if (w > this.w) {
-      scale_x = this.w / w;
-    }
+    let scale_x = this.ScaleX();
 
     // Draw pred status
     // for (let i=0; i<this.recog_status.length; i++) {
@@ -672,9 +678,10 @@ class RecorderViz extends MyStuff {
     {
       push();
       strokeWeight(3);
-      this.recog_decode_timestamps.forEach((ts) => {
-        point(ts * scale_x, dy+2);
-      })
+
+      //this.recog_decode_timestamps.forEach((ts) => {
+      //  point(ts * scale_x, dy+2);
+      //})
 
       if (is_hovered) {
         // 只有Hover了才标注数目
@@ -701,8 +708,8 @@ class RecorderViz extends MyStuff {
     // 完成堆积的工作，将录音按钮设为可用，并且如果现在没有按下，就把Aligner的这个批次终止
     if (this.state == "draining") {
       if (this.IsAllDone()) {
-        g_aligner.OnStopRecording();
         this.SetState("ready");
+        g_aligner.OnStopRecording();
       }
     }
   }

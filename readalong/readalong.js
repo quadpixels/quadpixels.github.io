@@ -439,7 +439,7 @@ class Aligner extends MyStuff {
       let donex0 = 0;
       let donex1 = W0;
       noStroke();
-      fill(DONE_BG[0], DONE_BG[1], DONE_BG[2]);
+      fill(DONE_BG[0], DONE_BG[1], DONE_BG[2], 128);
       const halfext = 60;
       const hw = completion * W0/2;
       rect(donex - hw, doney - halfext, 2*hw, 2*halfext);
@@ -609,8 +609,10 @@ class Aligner extends MyStuff {
     console.trace();
     let idx = 0;
     this.alignments.forEach((a) => {
-      const p0 = new p5.Vector(g_recorderviz.x + 3 * a[0], g_recorderviz.y);
-      g_aligner_particle_system.AddParticle(p0, a[1], idx*20);
+      const T = 12; // 见myworker.js
+      const ts = g_recorderviz.window_width / T * a[0];
+      const p0 = new p5.Vector(g_recorderviz.x + ts * g_recorderviz.ScaleX(), g_recorderviz.y);
+      g_aligner_particle_system.AddParticle(p0, a[1], idx*12);
       idx ++;
     });
 
@@ -922,7 +924,7 @@ class Aligner extends MyStuff {
     if (this.is_dragging) return;
 
     const MARGIN = 32;
-    const DISP_Y = -64;
+    const DISP_Y = -48;
 
     // 是否超限？
     const tot_h = this.text_size * this.data.length * 1.2;
@@ -1108,6 +1110,8 @@ function RenderReadAlong(delta_ms) {
 
 let g_highlights = {}
 function OnNewPinyins(x) {
+  if (g_recorderviz.state == "draining" || g_recorderviz.state == "recording") {}
+  else return;
   g_aligner.OnNewPinyins(x);
   
   // Highlight 拼音's
