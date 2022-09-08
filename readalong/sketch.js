@@ -724,7 +724,7 @@ class RecorderViz extends MyStuff {
     // 这一个预测输入 在这一轮录音中的开始时间戳
     offset = (serial - this.start_serial) * this.window_delta;
     timestamps.forEach((t) => {
-      // 因为CTC风格中 一列 是 10ms，而此处 画图时 1象素=1ms，所以要乘以10
+      // 因为CTC网格中 一列 是 10ms，而此处 画图时 1象素=1ms，所以要乘以10
       const T = 12; // 见myworker.js，一个窗口（1s）切成12份
       const timestamp = offset + (t+0.5) * (this.window_width / T);
       this.recog_decode_timestamps.push(timestamp);

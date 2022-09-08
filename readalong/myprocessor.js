@@ -224,14 +224,19 @@ class MyProcessor extends AudioWorkletProcessor {
   SetSourceSampleRate(sr) {
     // 坑：在手机上是48KHz，但是PC上是44100Hz
     this.original_sample_rate = sr;
-    this.output_sample_rate   = 8000;  // 8kHz output
+    this.output_sample_rate   = 16000;  // 16kHz output. 
 
     this.orig_step_size = 160;
     this.out_step_size = sr/100;
+
+    this.channel_count = 2;
+    this.frame_count = 0;
   }
   constructor(options) {
     super();
     this.soundDataCallback = undefined;
+
+    this.recording = true;
     
     // Ring buffer
     const N = 80000;
@@ -251,6 +256,12 @@ class MyProcessor extends AudioWorkletProcessor {
     if (options.processorOptions.sampleRate != undefined) {
       sampleRate = options.processorOptions.sampleRate;
     }
+
+    // 一开始要不要录音
+    if (options.processorOptions.startRecording != undefined) {
+      this.recording = options.processorOptions.startRecording;
+    }
+
     console.log("[MyProcessor]  sample rate: " + sampleRate);
     this.SetSourceSampleRate(sampleRate);
 
@@ -269,6 +280,13 @@ class MyProcessor extends AudioWorkletProcessor {
       const y = 0.54 - 0.46 * Math.cos(2*3.1415926*i / (w-1));
       this.hanning_window.push(y);
     }
+
+    this.port.onmessage = (e) => {
+      if (e.data.recording != undefined) {
+        this.recording = e.data.recording
+        console.log("recording=" + this.recording);
+      }
+    };
   }
 
   // Ring buffer stuff
@@ -299,11 +317,37 @@ class MyProcessor extends AudioWorkletProcessor {
   }
 
   process (inputs, outputs, parameters) {
+    this.frame_count ++;
+
+    if (!this.recording) {
+      return true;
+    }
+
     if (this.tot_entries == 0) {
     }  
     
-    const input = inputs[0][0]
-    if (input == undefined) return false;
+    //const input = inputs[0][0]
+
+    // 合并到一个声道中
+    let input00 = inputs[0][0];
+    if (input00 == undefined) return false;
+    const N = input00.length;
+    const NC = inputs[0].length;
+    const input = new Float32Array(N);
+
+    for (let i=0; i<N; i++) {
+      let s = 0;
+      for (let j=0; j<NC; j++) {
+        s += inputs[0][j][i];
+      }
+      input[i] = s / NC;
+    }
+
+
+    // Debug用
+    if (this.frame_count == 10) {
+      console.log(input)
+    }
 
     let downsampled = [];  // Downsampled samples for this CB
 

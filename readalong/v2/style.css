@@ -1,0 +1,37 @@
+html { touch-action: none; }
+
+*{
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  -khtml-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select:none;
+}
+
+.aligner_cell {
+  border: 1px #CCC dashed;
+  padding: 2px;
+  font-size: 2em;
+  margin: 0;
+}
+
+.aligner_curr {
+  border: 1px #CCC dashed;
+  background-color: bisque;
+  padding: 2px;
+  font-size: 2em;
+  margin: 0;
+}
+
+.aligner_done {
+  border: 1px #CCC dashed;
+  background-color: #FEC;
+  padding: 2px;
+  font-size: 2em;
+  margin: 0;
+}
+
+.button1 {
+  background-color: lightgray;
+  font-size: 1.3em;
+}

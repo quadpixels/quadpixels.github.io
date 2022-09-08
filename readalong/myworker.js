@@ -18,6 +18,7 @@ async function LoadModel() {
   const model = await tf.loadLayersModel("model/model.json");
   const ms1 = millis();
   console.log("[Worker] Model loading took " + (ms1-ms0) + " ms")
+  console.log("tf.getBackground(): " + tf.getBackend());
 
   postMessage({
     "TfjsVersion": "tfjs " + tf.version.tfjs + "(" + tf.getBackend() + ") [WebWorker]",

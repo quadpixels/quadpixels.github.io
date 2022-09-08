@@ -216,7 +216,7 @@ class Aligner extends MyStuff {
     }
     return ret;
   }
-  
+
   CharIdxToPinyinIdx(lidx, cidx) {
     let ret = 0;
     const line = this.data[lidx][0];
@@ -227,7 +227,7 @@ class Aligner extends MyStuff {
     } while (i < line.length);
     return ret;
   }
-  
+
   GetNextPinyins(n) {
     let ret = [];
     let l = this.line_idx, c = this.char_idx;

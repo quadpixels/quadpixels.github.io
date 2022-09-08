@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,user-scalable=no">
+    <title>Event listener with user-scalable=no</title>
+    <link rel="stylesheet" type="text/css" href="../media/css/front.css">
+    <style>
+      /* override front.css body width */
+    body { width: auto; }
+
+    code {
+      margin: 0 2px;
+      padding: 0px 5px;
+      border: 1px solid #eaeaea;
+      background-color: #f8f8f8;
+      border-radius: 3px;
+    }
+
+    output {
+      display: block;
+      padding: 1em;
+      font-size: 0.75em;
+      background: #ddd;
+      height: 20em;
+      overflow:auto;
+    }
+
+    output strong {
+      color: #f00;
+      text-decoration: underline;
+    }
+
+    button {
+      margin: 0 0 1rem;
+      padding: 0.15rem 1.5rem;
+      -moz-box-sizing: border-box;
+      box-sizing: border-box;
+      display: inline-block;
+      vertical-align: middle;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+      background: #ddd;
+      background: -moz-linear-gradient(top, #eee 0%, #bbb 100%);
+      background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#eee), color-stop(100%,#bbb));
+      background: -webkit-linear-gradient(top, #eee 0%,#bbb 100%);
+      background: -o-linear-gradient(top, #eee 0%,#bbb 100%);
+      background: -ms-linear-gradient(top, #eee 0%,#bbb 100%);
+      background: linear-gradient(to bottom, #eee 0%,#bbb 100%);
+      border: 0.1rem solid #a6a6a6;
+      border-radius: 0.2rem;
+      color: #333;
+      text-align: center;
+      text-shadow: 0.1rem 0.1rem 0 rgba(255,255,255,0.3);
+      text-decoration: none;
+      outline: none;
+    }
+
+    button:focus, button:hover {
+      border: 0.1rem solid #008aaa;
+    }
+
+    button:active  {
+      border-color: #008aaa;
+      background: #008aaa;
+      background: -moz-linear-gradient(top, #008aaa 0%, #00c7ea 100%);
+      background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#008aaa), color-stop(100%,#00c7ea));
+      background: -webkit-linear-gradient(top, #008aaa 0%,#00c7ea 100%);
+      background: -o-linear-gradient(top, #008aaa 0%,#00c7ea 100%);
+      background: -ms-linear-gradient(top, #008aaa 0%,#00c7ea 100%);
+      background: linear-gradient(to bottom, #008aaa 0%,#00c7ea 100%);
+      color: #333;
+    }
+
+    button::-moz-focus-inner {
+      border: none;
+      outline: none;
+    }
+    </style>
+    <script>
+    window.addEventListener('load', function() {
+      var t = 0;
+      var events = [
+      'MSPointerDown',
+      'MSPointerUp',
+      'MSPointerCancel',
+      'MSPointerOver',
+      'MSPointerOut',
+      'MSGotPointerCapture',
+      'MSLostPointerCapture',
+      'pointerdown',
+      'pointerup',
+      'pointercancel',
+      'pointerover',
+      'pointerout',
+      'gotpointercapture',
+      'lostpointercapture',
+      'touchstart',
+      'touchend',
+      'touchenter',
+      'touchleave',
+      'mouseover',
+      'mouseout',
+      'mousedown',
+      'mouseup',
+      'focus',
+      'blur',
+      'click'
+      ];
+      var b = document.querySelector('#TestButton');
+      var o = document.getElementsByTagName('output')[0],
+      report = function(e) {
+        /* Hack - would normally use e.timeStamp but it's whack in Fx/Android
+           As a result, the timings will be slightly inflated due to processing*/
+        var now = new Date().getTime();
+        var delta = now-t;
+        o.innerHTML += e.type;
+        if (t>0) {
+          if ((now-t)>150) {
+            o.innerHTML += ' (<strong>' + (delta) + 'ms</strong>)';
+          } else {
+            o.innerHTML += ' (' + (delta) + 'ms)';
+          }
+        }
+        t=now;
+        o.innerHTML += '<br>';
+        if (e.type == 'click') {
+          t=0;
+        }
+
+        if (e.type == "pointerdown") {
+          Hello.OnMouseDown();
+        }
+        else if (e.type == "pointerup") {
+          Hello.OnMouseUp();
+        }
+      }
+      for (var i=0; i<events.length; i++) {
+        const evt = events[i];
+        b.addEventListener(events[i], report, false);
+      }
+
+      let x = document.getElementById("output");
+      x.addEventListener("mousedown", ()=>{
+        x.innerHTML="";
+      });
+      
+    }, false);
+    </script>
+  </head>
+
+
+
+  <body>
+    <script src="tf.min.js"></script>
+    <script src="https://unpkg.com/mithril/mithril.js"></script>
+    <script src="./workerstuff.js"></script>
+    <script src="./audiostuff.js"></script>
+    <script src="./aligner.js"></script>
+    <script src="./index.js"></script>
+    <link rel="stylesheet" type="text/css" href="./style.css">
+
+    <div id="debug_panel" style="border:1px blue dashed">
+    <br/>
+    <button id="LoadTfjs">Load TFJS Model</button>
+    <br/>
+    <select name="" id="micSelect"></select>
+    <br/>
+    <button id="SelectRecordDevice">SelectRecordDevice</button>
+    <button id="test2">g_processor.recording=false</button>
+    <button id="test3">g_processor.recording=true</button>
+    <br/>
+    <button id="test4">Save to WAV</button>
+    <button class="button" id="ClearButton">Clear</button>
+    <br/>
+
+    <span>ORIG:<span><audio id="audio_orig" controls></audio>
+    <a id="download_orig" >Download</a>
+    <br/>
+    <span>16KHZ:</span><audio id="audio_16khz" controls></audio>
+    <a id="download_16khz" >Download</a>
+    <br/>
+
+    <br/>
+
+    <button class="button" id="TestButton">Push to Rec</button>
+    <br/>
+    <button class="button" id="DoPredictButton">Predict</button>
+    <output id="output"></output>
+    </div>
+
+  </body>
+</html>
