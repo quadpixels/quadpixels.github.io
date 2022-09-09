@@ -1,10 +1,6 @@
 const PROBE_RANGE0 = 4, PROBE_INCREMENT0 = 2;
 
-const PUZZLE_EVENT_COLOR = [192, 192, 244];
-const TENTATIVE_MATCH_COLOR = [10, 183, 252];
-const CAN_PROBE_COLOR = [ 32, 244, 244 ];
-const DONE_BG = [ 238, 176, 94 ];
-const DONE_FG = [ 204, 113, 84 ];
+const LINE_RELSIZE = 1.5;
 
 class AlignerParticle {
   // 这里的坐标是canvas上的坐标
@@ -121,6 +117,9 @@ class Aligner extends MyStuff {
     this.activation_lidx = -1;
     this.done_fadein_ms = 1000;
     this.is_done = false;
+
+    // 整段居中对齐用
+    this.max_line_width = 0;
   }
 
   FadeInDone() {
@@ -128,7 +127,6 @@ class Aligner extends MyStuff {
   }
   
   LoadData(data, title, text_size) {
-
     this.timestamp0 = millis();
     this.timestamp1 = millis();
     this.activation_lidx = -1;
@@ -263,19 +261,37 @@ class Aligner extends MyStuff {
     let y = 0;
     const TEXT_SIZE = this.text_size;
     textSize(TEXT_SIZE);
+
+    // 整段居中
+    let overall_x_offsets = 0;
+    let max_line_width = 0;
+    for (let i=0; i<this.data.length; i++) {
+      if (this.data[i].length > 0) {
+        let line = this.data[i][0];
+        let tot_tw = 0;
+        for (let cidx = 0; cidx < line.length; cidx ++) {
+          tot_tw += textWidth(line[cidx]);
+        }
+        max_line_width = max(max_line_width, tot_tw);
+      }
+    }
+    this.max_line_width = max_line_width;
+
     for (let i=0; i<this.data.length; i++) {
       const line_cps = [];
       if (this.data[i].length > 0) {
         const line = this.data[i][0];
-        let dx = 0;
+        
+        let dx = (g_readalong_layout.w / 2 - max_line_width / 2);
+
         for (let cidx = 0; cidx < line.length; cidx ++) {
           const ch = line[cidx];
           const tw = textWidth(ch);
-          dx = dx + tw;
           line_cps.push(new p5.Vector(dx+tw/2, y+TEXT_SIZE/2));
+          dx = dx + tw;
         }
       }
-      y = y + TEXT_SIZE * 1.2;
+      y = y + TEXT_SIZE * LINE_RELSIZE;
       this.char_positions.push(line_cps);
     }
     pop();
@@ -295,14 +311,15 @@ class Aligner extends MyStuff {
     const COLOR1 = '#33f', COLOR2 = '#000';
     textSize(TEXT_SIZE);
     textFont('KaiTi');
+    textAlign(LEFT, TOP);
     
     const translate_y = -this.GetPanY();
     const margin = 32;
 
     // 高亮当前行
     const ly = g_readalong_layout.y, lh = g_readalong_layout.h;
-    let hl_y0 = ly + translate_y + TEXT_SIZE*1.2 * this.line_idx;
-    let hl_y1 = hl_y0 + TEXT_SIZE * 1.2;
+    let hl_y0 = ly + translate_y + TEXT_SIZE*LINE_RELSIZE * this.line_idx;
+    let hl_y1 = hl_y0 + TEXT_SIZE * LINE_RELSIZE;
     hl_y0 = min(hl_y0, ly+lh); hl_y1 = min(hl_y1, ly+lh);
     hl_y0 = max(hl_y0, ly)   ; hl_y1 = max(hl_y1, ly);
     let hl_x = g_readalong_layout.x;
@@ -319,7 +336,7 @@ class Aligner extends MyStuff {
         
       let alpha = 255, c0, c;
       const ly = g_readalong_layout.y, lh = g_readalong_layout.h;
-      const y1_disappear = ly+lh-TEXT_SIZE*1.2;
+      const y1_disappear = ly+lh-TEXT_SIZE*LINE_RELSIZE;
       if (y < ly+margin) {
         alpha = map(y, ly+margin, ly, 255, 0);
       } else if (y > y1_disappear-margin) {
@@ -327,7 +344,9 @@ class Aligner extends MyStuff {
           255, 0);
       }
 
-      let dx = 0, pidx = 0; // 拼音idx
+      // 居中显示
+      let dx = (g_readalong_layout.w / 2 - this.max_line_width / 2);
+      let pidx = 0; // 拼音idx
       for (let cidx = 0; cidx < curr_line.length; cidx ++) {
         const ch = curr_line[cidx];
         
@@ -370,9 +389,9 @@ class Aligner extends MyStuff {
           pidx ++;
         }
 
-        c0 = color(128, 128, 128, alpha), c = c0;
+        c0 = color(COLOR_TEXT_NORMAL[0], COLOR_TEXT_NORMAL[1], COLOR_TEXT_NORMAL[2], alpha), c = c0;
         if (state == "done") {
-          c0 = color(252, 183, 10, alpha);
+          c0 = color(COLOR_TEXT_DONE[0], COLOR_TEXT_DONE[1], COLOR_TEXT_DONE[2], alpha);
         } else if (state == "tentative") {
           c0 = color(TENTATIVE_MATCH_COLOR[0], TENTATIVE_MATCH_COLOR[1], TENTATIVE_MATCH_COLOR[2], alpha);
         } else if (state == "can probe") {
@@ -385,16 +404,16 @@ class Aligner extends MyStuff {
           c = c0;
         }
         
-        dx = dx + textWidth(ch);
         if (alpha > 0) {
           noStroke();
           fill(c);
           text(ch, dx+x, y);
           if (state == "can probe") {
-            noFill(); stroke(32);
+            noFill(); stroke(COLOR_PROBE[0], COLOR_PROBE[1], COLOR_PROBE[2]);
             line(dx+3, y+TEXT_SIZE, dx+textWidth(ch), y+TEXT_SIZE);
           }
         }
+        dx = dx + textWidth(ch);
       }
 
       const e = this.puzzle_events[i];
@@ -407,7 +426,7 @@ class Aligner extends MyStuff {
         })
       }
       
-      y += TEXT_SIZE*1.2;
+      y += TEXT_SIZE*LINE_RELSIZE;
     }
 
     textSize(20);
@@ -422,8 +441,8 @@ class Aligner extends MyStuff {
     
     
     let th = nlines * 23 + 3;
-    stroke(32);
-    fill("rgba(255,255,255,0.9)")
+    stroke(COLOR_BTN_BORDER[0], COLOR_BTN_BORDER[1], COLOR_BTN_BORDER[2]);
+    fill(color(COLOR_BTN_IDLE[0], COLOR_BTN_IDLE[1], COLOR_BTN_IDLE[2], 0.9));
     DrawBorderStyle1(240-tw/2, dy, tw, th);
 
     noStroke();
@@ -439,11 +458,12 @@ class Aligner extends MyStuff {
       let donex0 = 0;
       let donex1 = W0;
       noStroke();
-      fill(DONE_BG[0], DONE_BG[1], DONE_BG[2], 128);
+      fill(DONE_BG[0], DONE_BG[1], DONE_BG[2], 224);
       const halfext = 60;
       const hw = completion * W0/2;
       rect(donex - hw, doney - halfext, 2*hw, 2*halfext);
       fill(DONE_FG[0], DONE_FG[1], DONE_FG[2]);
+      stroke(COLOR_INTRO3[0], COLOR_INTRO3[1], COLOR_INTRO3[2]);
       textAlign(CENTER, CENTER);
       textSize(36);
       const secs = parseInt((this.timestamp1 - this.timestamp0) / 1000);
@@ -606,7 +626,7 @@ class Aligner extends MyStuff {
     console.log("Aligner.OnStopRecording, saved idx:"
       + this.saved_line_idx + "," + this.saved_char_idx + ", curr idx:"
       + this.line_idx + "," + this.char_idx);
-    console.trace();
+
     let idx = 0;
     this.alignments.forEach((a) => {
       const T = 12; // 见myworker.js
@@ -927,7 +947,7 @@ class Aligner extends MyStuff {
     const DISP_Y = -48;
 
     // 是否超限？
-    const tot_h = this.text_size * this.data.length * 1.2;
+    const tot_h = this.text_size * this.data.length * LINE_RELSIZE;
     const overshoot = tot_h - (g_readalong_layout.h - MARGIN*2 + DISP_Y);
     let y;
 

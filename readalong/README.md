@@ -27,4 +27,9 @@
   * `tensorflowjs_converter --input_format keras weights_my_py3/model.h5 /tmp/h5/`
   * 然后将其中内容复制到model路径下
 
+一些参数
+* 用于FFT的信号频率为16000Hz
+  * 窗口长度：100个FFT
+  * 窗口位移：25个FFT
+
 还要修复许多bug和优化很多地方 :-S

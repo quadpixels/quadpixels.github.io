@@ -1,10 +1,72 @@
 // 2021-10-09
 // audio stuff
 
-const COLOR_BACKGROUND = "rgba(249, 239, 227, 1)";
-const COLOR0 = "rgba(167,83,90,1)"; // 满江红
-const COLOR1 = "rgba(238,162,164,1)" // 牡丹粉红
-const COLOR_FFTBARS = "rgba(238,162,164,1)" // 牡丹粉红
+let COLOR_BACKGROUND, COLOR0, COLOR1, COLOR_FFTBARS;
+
+let g_game_mode = "mid_autumn";
+
+if (g_game_mode == "spring_festival") {
+  COLOR_BACKGROUND = "rgba(249, 239, 227, 1)";
+  COLOR0 = "rgba(167,83,90,1)"; // 满江红
+  COLOR1 = "rgba(238,162,164,1)" // 牡丹粉红
+  COLOR_FFTBARS = "rgba(238,162,164,1)" // 牡丹粉红
+  COLOR_WAVE_BG = "rgba(32,32,255,0.2)"; //
+  COLOR_INTRO1 = [252, 232, 199]; // 开篇时的背景色
+  COLOR_INTRO2 = [167, 119, 37]; // 中间的矩形
+  COLOR_INTRO3 = [213, 173, 114];
+  COLOR_INTRO4 = [43, 20, 0];
+  COLOR_INTRO5 = [169, 58, 39];   
+  COLOR_INTRO_MESSAGE = [213, 173, 114];
+  COLOR_BTN_BORDER = [32, 32, 32];
+  COLOR_BTN_IDLE = [212, 170, 110];
+  COLOR_BTN_NON_HOVER_CHECKED = [193, 84, 71];
+  COLOR_BTN_NON_HOVER_UNCHECKED = [212, 170, 110];
+  COLOR_BTN_HOVER_PRESSED = [192, 44, 56];
+  COLOR_BTN_HOVER_RELEASED = [255, 240, 240];
+  COLOR_BTN_TEXT = [ 32, 32, 32 ];
+  PUZZLE_EVENT_COLOR = [192, 192, 244];
+  TENTATIVE_MATCH_COLOR = [10, 183, 252];
+  CAN_PROBE_COLOR = [ 32, 244, 244 ];
+  COLOR_PROBE = [ 32, 32, 32 ];
+  COLOR_TEXT_DONE = [ 252, 283, 10 ];
+  COLOR_TEXT_NORMAL = [ 128, 128, 128 ];
+  DONE_BG = [ 238, 176, 94 ];
+  DONE_FG = [ 204, 113, 84 ];
+  DONE_FG_OUTLINE = [ 204, 113, 84 ];
+  COLOR_RECORDER_BG = [ 122, 122, 122 ];
+  COLOR_RECORDER_BAR = [ 32, 32, 32 ];
+} else {
+  COLOR_BACKGROUND = "rgba(48, 72, 88, 1)";
+  COLOR0 = "rgba(242,222,118,1)"; // 满江红
+  COLOR1 = "rgba(219,206,84,1)" // 牡丹粉红
+  COLOR_FFTBARS = "rgba(238,162,164,1)" // 牡丹粉红
+  COLOR_WAVE_BG = "rgba(32,32,64,0.2)"; //
+  COLOR_INTRO1 = [20, 62, 94];
+  COLOR_INTRO2 = [215, 193, 107];
+  COLOR_INTRO3 = [180, 148, 54];
+  COLOR_INTRO4 = [43, 20, 0];
+  COLOR_INTRO5 = [62, 237, 231];
+  COLOR_INTRO_MESSAGE = [215, 193, 107];
+  COLOR_BTN_BORDER = [ 201, 221, 34 ];
+  COLOR_BTN_IDLE = [227, 239, 109];
+  COLOR_BTN_NON_HOVER_CHECKED = [234, 255, 86];
+  COLOR_BTN_NON_HOVER_UNCHECKED = [174, 196, 183];
+  COLOR_BTN_HOVER_PRESSED = [22, 133, 169];
+  COLOR_BTN_HOVER_RELEASED = [112, 243, 255];
+  COLOR_BTN_TEXT = [ 24, 24, 36 ];
+  PUZZLE_EVENT_COLOR = [ 193, 235, 215 ];
+  TENTATIVE_MATCH_COLOR = [ 68, 206, 246 ];
+  CAN_PROBE_COLOR = [ 32, 244, 244 ];
+  COLOR_PROBE = [ 192, 235, 215 ];
+  COLOR_TEXT_DONE = [ 255, 241, 67 ];
+  COLOR_TEXT_NORMAL = [ 243, 249, 241 ];
+  DONE_BG = [238, 176, 94 ];
+  DONE_FG = [62, 237, 231];
+  DONE_FG_OUTLINE = [ 233, 233, 24 ];
+  COLOR_RECORDER_BG = [ 48, 71, 88 ];
+  COLOR_RECORDER_BAR = [ 219, 206, 84 ];
+}
+
 const FRAMERATE_NORMAL = 30;
 const FRAMERATE_RECORDING = 10;
 
@@ -547,10 +609,10 @@ class RecorderViz extends MyStuff {
     let txt = "" + this.buffer.length + " | " + 
       (this.duration_ms / 1000).toFixed(1) + "s |";
 
-    fill(122);
+    fill(COLOR_RECORDER_BG[0], COLOR_RECORDER_BG[1], COLOR_RECORDER_BG[2]);
 
     noFill();
-    stroke(32);
+    stroke(COLOR_RECORDER_BAR[0], COLOR_RECORDER_BAR[1], COLOR_RECORDER_BAR[2]);
     const h = this.graph.height;
     let dy = 0;
     const w = this.buffer.length;
@@ -558,7 +620,7 @@ class RecorderViz extends MyStuff {
 
     if (this.draw_stat) {
       noStroke();
-      fill(32);
+      fill(COLOR_RECORDER_BAR[0], COLOR_RECORDER_BAR[1], COLOR_RECORDER_BAR[2]);
       txt = txt + " | Window:[" + this.window_offset + "," + 
             (this.window_offset + this.window_width) + "]"
       let recoged = 0;
@@ -606,8 +668,8 @@ class RecorderViz extends MyStuff {
 
     const soundbar_h = 36;
     // 画出边框
-    fill("rgba(255,255,255,0.7)");
-    stroke(128);
+    fill(color(COLOR_RECORDER_BG[0], COLOR_RECORDER_BG[1], COLOR_RECORDER_BG[2], 0.7));
+    stroke(color(COLOR_RECORDER_BAR[0], COLOR_RECORDER_BAR[1], COLOR_RECORDER_BAR[2]));
     rect(0, 0, this.w, soundbar_h);
 
     let is_hovered = false;
@@ -627,7 +689,7 @@ class RecorderViz extends MyStuff {
       let dwwid = min(wwid, this.w-dx);
       if (hover_widx < this.recog_status.length) {
         stroke("#33F");
-        fill("rgba(32,32,255,0.2)");
+        fill(COLOR_WAVE_BG);
         rect(dx, 0, dwwid, soundbar_h);
 
         textAlign(LEFT, TOP);
@@ -648,7 +710,7 @@ class RecorderViz extends MyStuff {
       }
     }
 
-    stroke(128);
+    stroke(COLOR_RECORDER_BAR[0], COLOR_RECORDER_BAR[1], COLOR_RECORDER_BAR[2]);
     noFill();
     strokeWeight(2);
     if (this.draw_energy) {
@@ -659,7 +721,7 @@ class RecorderViz extends MyStuff {
 
       let nshown = this.energy_readings.length;
       // 别画太多
-      while (nshown > 480) {
+      while (nshown > 476) {
         nshown /= 1.1;
         step *= 1.1;
       }
@@ -783,25 +845,35 @@ class Button extends MyStuff {
     push();
 
     let c = color(48, 48, 48);
-    let f = color(212, 170, 110, 192);
+    let f = color(COLOR_BTN_IDLE[0],
+      COLOR_BTN_IDLE[1],
+      COLOR_BTN_IDLE[2], 192);
     if (!this.is_enabled) {
       c = "#777";
       f = color(128, 128, 128, 192);
     } else {
       if (!this.is_hovered) {
-        c = color(48, 48, 48);
+        c = color(COLOR_BTN_BORDER[0], COLOR_BTN_BORDER[1], COLOR_BTN_BORDER[2]);
         if (this.checked) {
-          f = color(193, 84, 71, 192);
+          f = color(COLOR_BTN_NON_HOVER_CHECKED[0],
+            COLOR_BTN_NON_HOVER_CHECKED[1],
+            COLOR_BTN_NON_HOVER_CHECKED[2], 192);
         } else {
-          f = color(212, 170, 110, 192);
+          f = color(COLOR_BTN_NON_HOVER_UNCHECKED[0],
+            COLOR_BTN_NON_HOVER_UNCHECKED[1],
+            COLOR_BTN_NON_HOVER_UNCHECKED[2], 192);
         }
       } else {
         if (this.is_pressed) {
-          c = color(56, 32, 32); // 高粱红
-          f = color(192, 44, 56, 192);
+          c = color(COLOR_BTN_BORDER[0], COLOR_BTN_BORDER[1], COLOR_BTN_BORDER[2]);
+          f = color(COLOR_BTN_HOVER_PRESSED[0],
+            COLOR_BTN_HOVER_PRESSED[1],
+            COLOR_BTN_HOVER_PRESSED[2], 192);
         } else {
-          c = color(56, 32, 32); // 莓红
-          f = color(255, 240, 240, 192);
+          c = color(COLOR_BTN_BORDER[0], COLOR_BTN_BORDER[1], COLOR_BTN_BORDER[2]);
+          f = color(COLOR_BTN_HOVER_RELEASED[0],
+            COLOR_BTN_HOVER_RELEASED[1],
+            COLOR_BTN_HOVER_RELEASED[2], 192);
         }
       }
     }
@@ -821,7 +893,7 @@ class Button extends MyStuff {
       DrawBorderStyle2(0, 0, w, h);
     }
 
-    fill(c);
+    fill(COLOR_BTN_TEXT[0], COLOR_BTN_TEXT[1], COLOR_BTN_TEXT[2]);
     if (this.text_size != undefined) {
       textSize(this.text_size);
     } else {
@@ -1624,7 +1696,9 @@ async function setup() {
     g_readalong_layout.SwitchMode();
     g_aligner.Update(0, 0); // 跳过跟踪动画
   }
-  g_buttons.push(g_btn_puzzle_mode);
+  if (g_game_mode == "spring_festival") {
+    g_buttons.push(g_btn_puzzle_mode);
+  }
 
   g_btn_level_select = new Button("返回");
   g_btn_level_select.x = 4;

@@ -61,21 +61,21 @@ class IntroScreen {
     noStroke();
     //stroke(color(167, 119, 37));
 
-    fill(color(252, 232, 199));
+    fill(COLOR_INTRO1[0], COLOR_INTRO1[1], COLOR_INTRO1[2]);
     let x0 = 0, x1 = W0/2 * (1-this.GetK());
     rect(x0, 0, x1-x0, H0);
     x0 = W0/2 + W0/2 * this.GetK(); x1 = W0;
     rect(x0, 0, x1-x0, H0);
 
     const a = 255 * (1 - this.GetK());
-    stroke(color(167, 119, 37));
-    fill(color(213, 173, 114));
+    stroke(color(COLOR_INTRO2[0], COLOR_INTRO2[1], COLOR_INTRO2[2]));
+    fill(color(COLOR_INTRO3[0], COLOR_INTRO3[1], COLOR_INTRO3[2]));
     const w1 = W0 / 5 * (1 - this.GetK()), y0 = H0 * 0.15, y1 = H0 * 0.58, y2 = H0 * 0.75;
     const pad_y = 68;
     rect(W0/2-w1/2, y0, w1, y1-y0);
 
-    stroke(43, 20, 0, a);
-    fill(169, 58, 39, a)
+    stroke(COLOR_INTRO4[0], COLOR_INTRO4[1], COLOR_INTRO4[2], a);
+    fill(COLOR_INTRO5[0], COLOR_INTRO5[1], COLOR_INTRO5[2], a)
     const title = ["芝", "麻", "开", "门"];
     textAlign(CENTER, CENTER);
     textSize(48);
@@ -85,7 +85,7 @@ class IntroScreen {
 
     textSize(24);
     noStroke();
-    fill(213, 173, 114, a);
+    fill(COLOR_INTRO_MESSAGE[0], COLOR_INTRO_MESSAGE[1], COLOR_INTRO_MESSAGE[2], a);
     text(this.message, W0/2, y2);
 
     //
@@ -95,7 +95,7 @@ class IntroScreen {
   }
 }
 
-const THRESHOLD_START = 8;
+const THRESHOLD_START = 4;
 const THRESHOLD_RABBIT = 20;
 
 class LevelSelect extends MyStuff {
@@ -161,66 +161,79 @@ class LevelSelect extends MyStuff {
 
     let btn_w = 200, btn_h = 48, btn_margin_x = 10, btn_margin_y = 10;
     // 选取模式
-    let b = new Button("朗读");
-    b.x = W0/2 - btn_margin_x/2 - btn_w;
-    b.w = btn_w; b.h = btn_h; b.y = this.btn_modes_y;
-    this.btn_modes.push(b);
-    b.SetParent(this);
-    b.text_size = 26;
-    b.clicked = () => {
-      this.game_mode = "practice";
-      this.UpdateTitles();
-    }
+    let tot_w = 0;
 
-    b = new Button("朗读+拼图");
-    b.x = W0/2 + btn_margin_x/2;
-    b.w = btn_w; b.h = btn_h; b.y = this.btn_modes_y;
-    this.btn_modes.push(b);
-    b.SetParent(this);
-    b.text_size = 22;
-    b.clicked = () => {
-      this.game_mode = "puzzle";
-      this.UpdateTitles();
-    }
-
-    btn_w = 72; btn_h = 32; btn_margin_x = 10; btn_margin_y = 10;
-
-    // 选取关卡
-    const btn_levels_y = this.btn_levels_y;
-    const btn_levels = [ "壹號", "貳號", "叁號", "肆號" ];
-    const N = btn_levels.length;
-    textSize(20);
-    const tw = textWidth("拼图选择：");
-    let tot_w = btn_margin_x * (N-1) + btn_w * N + tw;
-    let x0 = W0/2 - tot_w/2 + tw;
-
-    for (let x = x0, i=0; i<N; x+=(btn_w+btn_margin_x), i++) {
-      const b = new Button(btn_levels[i]);
-      b.w = btn_w; b.h = btn_h; b.x = x; b.y = btn_levels_y;
-      b.checked = false;
+    let b;
+    if (g_game_mode == "spring_festival") {
+      b = new Button("朗读");
+      b.x = W0/2 - btn_margin_x/2 - btn_w;
+      b.w = btn_w; b.h = btn_h; b.y = this.btn_modes_y;
+      this.btn_modes.push(b);
       b.SetParent(this);
+      b.text_size = 26;
       b.clicked = () => {
-        const c = b.checked;
-        this.btn_puzzles.forEach((btn) => {
-          btn.checked = false;
-        });
-        b.checked = !c;
+        this.game_mode = "practice";
         this.UpdateTitles();
       }
-      this.btn_puzzles.push(b);
-    }
 
-    // 兔子模式按钮的字弄小一点
-    if (this.btn_puzzles.length >= 5) {
-      this.btn_rabbit_mode = this.btn_puzzles[4];
-      this.btn_rabbit_mode.text_size = 18;
+      b = new Button("朗读+拼图");
+      b.x = W0/2 + btn_margin_x/2;
+      b.w = btn_w; b.h = btn_h; b.y = this.btn_modes_y;
+      this.btn_modes.push(b);
+      b.SetParent(this);
+      b.text_size = 22;
+      b.clicked = () => {
+        this.game_mode = "puzzle";
+        this.UpdateTitles();
+      }
+
+      btn_w = 72; btn_h = 32; btn_margin_x = 10; btn_margin_y = 10;
+
+      // 选取关卡
+      const btn_levels_y = this.btn_levels_y;
+      const btn_levels = [ "壹號", "貳號", "叁號", "肆號" ];
+      const N = btn_levels.length;
+      textSize(20);
+      const tw = textWidth("拼图选择：");
+      tot_w = btn_margin_x * (N-1) + btn_w * N + tw;
+      let x0 = W0/2 - tot_w/2 + tw;
+
+      for (let x = x0, i=0; i<N; x+=(btn_w+btn_margin_x), i++) {
+        const b = new Button(btn_levels[i]);
+        b.w = btn_w; b.h = btn_h; b.x = x; b.y = btn_levels_y;
+        b.checked = false;
+        b.SetParent(this);
+        b.clicked = () => {
+          const c = b.checked;
+          this.btn_puzzles.forEach((btn) => {
+            btn.checked = false;
+          });
+          b.checked = !c;
+          this.UpdateTitles();
+        }
+        this.btn_puzzles.push(b);
+      }
+
+      // 兔子模式按钮的字弄小一点
+      if (this.btn_puzzles.length >= 5) {
+        this.btn_rabbit_mode = this.btn_puzzles[4];
+        this.btn_rabbit_mode.text_size = 18;
+      }
     }
 
     const btn_title_w = 220, btn_title_h = 50;
     tot_w = btn_margin_x + 2 * btn_title_w;
     const btn_title_x0 = W0 / 2 - tot_w / 2;
-    const num_rows = 4, num_cols = 2;
-    let y = this.btn_poems_y + 100;
+    let num_rows, num_cols;
+    let y;
+    if (g_game_mode == "spring_festival") {
+      num_rows = 4, num_cols = 2;
+      y = this.btn_poems_y + 100;
+    } else {
+      num_rows = 5, num_cols = 2;
+      y = this.btn_poems_y - 50;
+      btn_margin_y = 20;
+    }
     let count = 0;
     for (let i=0; i<num_rows; i++) {
       let x = btn_title_x0;
@@ -248,7 +261,7 @@ class LevelSelect extends MyStuff {
     }
 
     y += btn_margin_y;
-    const pad = 30;
+    const pad = 50;
 
     let x = btn_title_x0;
     b = new Button("<< 上一页");
@@ -334,31 +347,23 @@ class LevelSelect extends MyStuff {
     //}
     //this.btn_practice.is_enabled = (this.num_sentences > 0);
 
-    if (this.game_mode == "practice") {
-      this.btn_start.is_enabled = true;
-    } else {
-      if (this.ChosenPuzzleIdx() == -999) {
-        this.btn_start.is_enabled = false;
+    if (g_game_mode == "spring_festival") {
+      if (this.game_mode == "practice") {
+        this.btn_puzzles.forEach((b) => {
+          b.is_enabled = false;
+        })
+        this.chosen_puzzle_idx = -999;
+        this.btn_modes[0].checked = true;
+        this.btn_modes[1].checked = false;
       } else {
-        if (this.num_sentences >= 8) {
-          this.btn_start.is_enabled = true;
-        }
+        this.btn_puzzles.forEach((b) => {
+          b.is_enabled = true;
+        })
+        this.btn_modes[0].checked = false;
+        this.btn_modes[1].checked = true;
       }
-    }
-
-    if (this.game_mode == "practice") {
-      this.btn_puzzles.forEach((b) => {
-        b.is_enabled = false;
-      })
-      this.chosen_puzzle_idx = -999;
-      this.btn_modes[0].checked = true;
-      this.btn_modes[1].checked = false;
     } else {
-      this.btn_puzzles.forEach((b) => {
-        b.is_enabled = true;
-      })
-      this.btn_modes[0].checked = false;
-      this.btn_modes[1].checked = true;
+      this.btn_start.is_enabled  = (this.num_sentences >= THRESHOLD_START);
     }
   }
 
@@ -396,7 +401,7 @@ class LevelSelect extends MyStuff {
 
   do_Render() {
     if (!this.visible) return;
-    fill(color(252, 232, 199));
+    fill(color(COLOR_INTRO1[0], COLOR_INTRO1[1], COLOR_INTRO1[2]));
     rect(0, 0, W0, H0);
 
     push();
@@ -404,35 +409,52 @@ class LevelSelect extends MyStuff {
     
     textSize(30);
     textAlign(CENTER, TOP);
-    fill(213, 173, 114);
+    fill(COLOR_INTRO3[0], COLOR_INTRO3[1], COLOR_INTRO3[2]);
 
-    text("【谜题设置】", W0/2, 16)
+    if (g_game_mode == "spring_festival") {
+      text("【谜题设置】", W0/2, 16)
 
-    textSize(20);
-    const nb = this.btn_titles.length;
-    const pageidx = parseInt(this.title_idx_lb / nb) + 1;
-    const np = parseInt((TITLES.length - 1) / nb)+1;
-    textAlign(CENTER, CENTER);
-    text("第" + pageidx + "/" + np + "页", W0/2,
-      this.btn_nextpage.y + this.btn_nextpage.h/2);
-    textAlign(RIGHT, CENTER);
-    const bp0 = this.btn_puzzles[0];
-    text("拼图选择：", bp0.x - 5, bp0.y + bp0.h/2);
-    
-    textSize(30);
+      textSize(20);
+      const nb = this.btn_titles.length;
+      const pageidx = parseInt(this.title_idx_lb / nb) + 1;
+      const np = parseInt((TITLES.length - 1) / nb)+1;
+      textAlign(CENTER, CENTER);
+      text("第" + pageidx + "/" + np + "页", W0/2,
+        this.btn_nextpage.y + this.btn_nextpage.h/2);
 
-    fill(169, 58, 39);
-    textAlign(CENTER, BOTTOM);
-    text("一、选择模式", W0/2, this.btn_modes_y - 20);
-    text("二、选择篇目", W0/2, this.btn_poems_y - 20);
+      textSize(20);
+      textAlign(RIGHT, CENTER);
+      const bp0 = this.btn_puzzles[0];
+      text("拼图选择：", bp0.x - 5, bp0.y + bp0.h/2);
+      
+      textSize(30);
+
+      fill(COLOR_INTRO5[0], COLOR_INTRO5[1], COLOR_INTRO5[2]);
+      textAlign(CENTER, BOTTOM);
+      text("一、选择模式", W0/2, this.btn_modes_y - 20);
+      text("二、选择篇目", W0/2, this.btn_poems_y - 20);
+    } else {
+      text("选择篇目", W0/2,  32);
+      textSize(20);
+      const nb = this.btn_titles.length;
+      const pageidx = parseInt(this.title_idx_lb / nb) + 1;
+      const np = parseInt((TITLES.length - 1) / nb)+1;
+      textAlign(CENTER, CENTER);
+      text("第" + pageidx + "/" + np + "页", W0/2,
+        this.btn_nextpage.y + this.btn_nextpage.h/2);
+    }
     textAlign(RIGHT, CENTER);
     text("三、", this.btn_start.x, this.btn_start.y + this.btn_start.h/2);
 
     const LEVEL_BAR_X0 = 4 + textWidth("句数：");
     let LEVEL_BAR_WIDTH = 5;
     let LEVEL_BAR_GAP = 10;
-    const LEVEL_BAR_H = 20;
-    const LEVEL_BAR_Y = this.btn_poems_y - 10;
+    let LEVEL_BAR_H = 20, LEVEL_BAR_Y;
+    if (g_game_mode == "spring_festival") {
+      LEVEL_BAR_Y = this.btn_poems_y - 10;
+    } else {
+      LEVEL_BAR_Y = this.btn_poems_y - 190;
+    }
     const pad0 = 4, pad1 = 8;
 
     const WLIMIT = W0 - 60;
@@ -442,12 +464,17 @@ class LevelSelect extends MyStuff {
     }
 
     let breaks = [], break_descs = [];
-    if (this.game_mode == "puzzle") {
-      breaks = [THRESHOLD_START, THRESHOLD_RABBIT];
-      break_descs = ["至少需要8句\n才能拼图"];//, "20句可开启\n兔子模式"];
+    if (g_game_mode == "spring_festival") {
+      if (this.game_mode == "puzzle") {
+        breaks = [THRESHOLD_START, THRESHOLD_RABBIT];
+        break_descs = ["至少需要8句\n才能拼图"];//, "20句可开启\n兔子模式"];
+      } else {
+        breaks = [8, 16, 24, 32];
+        break_descs = [ "8", "16", "24", "32" ];
+      }
     } else {
-      breaks = [8, 16, 24, 32];
-      break_descs = [ "8", "16", "24", "32" ];
+      breaks = [THRESHOLD_START, "16", "24", "32"];
+      break_descs = ["至少需要\n8句", "16", "24", "32"];//, "20句可开启\n兔子模式"];
     }
 
     const BREAKS_Y = LEVEL_BAR_Y + LEVEL_BAR_H + pad1 + 4;
@@ -498,7 +525,7 @@ class LevelSelect extends MyStuff {
       rect(x0, LEVEL_BAR_Y, LEVEL_BAR_WIDTH, LEVEL_BAR_H);
     }
 
-    fill(169, 58, 39);
+    fill(COLOR_INTRO5[0], COLOR_INTRO5[1], COLOR_INTRO5[2]);
     textSize(20);
     textAlign(RIGHT, CENTER);
     text("句数：", LEVEL_BAR_X0, LEVEL_BAR_Y + LEVEL_BAR_H / 2);
@@ -516,11 +543,26 @@ class LevelSelect extends MyStuff {
       BREAKS_Y);
     }
 
+    textAlign(CENTER, BOTTOM);
+    if (g_game_mode == "mid_autumn") {
+      if (this.num_sentences < THRESHOLD_START) {
+        text("至少需要" + THRESHOLD_START + "句",
+          W0 / 2,
+          this.btn_start.y - 10);
+      }
+    }
+
     // 预览文字
     textAlign(CENTER, BOTTOM);
     noStroke();
-    fill(color(213, 173, 114, this.GetPreviewAlpha()));
-    text(this.preview_text, W0/2, this.btn_poems_y + 90);
+    fill(color(COLOR_INTRO_MESSAGE[0], COLOR_INTRO_MESSAGE[1],
+      COLOR_INTRO_MESSAGE[2], this.GetPreviewAlpha()));
+
+    if (g_game_mode == "spring_festival") {
+      text(this.preview_text, W0/2, this.btn_poems_y + 90);
+    } else {
+      text(this.preview_text, W0/2, this.btn_poems_y - 80);
+    }
 
     pop();
   }
@@ -540,7 +582,7 @@ class LevelSelect extends MyStuff {
   GenTitle() {
     const ts = this.selected_title_idxes;
     let txt = "";
-    const LIMIT = 40;
+    const LIMIT = 20;
     for (let i=0; i<ts.length; i++) {
       const t = TITLES[ts[i]].split("\n")[0];
       if ((t + txt).length <= 40) {
