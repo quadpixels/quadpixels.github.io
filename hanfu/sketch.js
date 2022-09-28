@@ -211,6 +211,9 @@ class PolygonGrapher extends MyStuff {
     
     this.speed = 200; // 源文件中的坐标距离 每秒
     this.scale = 3;
+    
+    // 坑：往贴图上画再显示出来会非常慢
+    this.buffered = false;
   }
   
   CalculateBB() {
@@ -229,6 +232,13 @@ class PolygonGrapher extends MyStuff {
     return [x_min, y_min, y_min, y_max];
   }
   
+  EdgeP0P1(pidx, vidx) {
+    const poly = this.data[pidx];
+    const p0 = new p5.Vector(poly[vidx][0], poly[vidx][1]);
+    const p1 = new p5.Vector(poly[vidx+1][0], poly[vidx+1][1]);
+    return [p0, p1];
+  }
+  
   CurrEdgeP0P1() {
     const poly = this.data[this.polygon_idx];
     const vidx = this.vert_idx;
@@ -244,6 +254,7 @@ class PolygonGrapher extends MyStuff {
     if (this.polygon_idx == this.data.length - 1) {
       if (this.polygon_idx >= this.data.length - 2) {
         ok = false;
+        this.curr_edge_completion = 1;
       }
     }
     
@@ -283,7 +294,35 @@ class PolygonGrapher extends MyStuff {
   }
   
   Render() {
-    image(this.g, this.x, this.y, this.g.width / this.density, this.g.height / this.density);
+    if (this.buffered) {
+      image(this.g, this.x, this.y, this.g.width / this.density, this.g.height / this.density);
+    } else {
+      if (this.data == undefined) return;
+      let done = false;
+      push();
+      noFill();
+      stroke("#FF3");
+      strokeWeight(1 / this.scale);
+      translate(this.x, this.y);
+      scale(this.scale);
+      for (let i=0; i<this.data.length; i++) {
+        const poly = this.data[i];
+        if (done) break;
+        for (let j=0; j<poly.length-1; j++) {
+          const p0p1 = this.EdgeP0P1(i, j);
+          const p0 = p0p1[0], p1 = p0p1[1];
+          if (i == this.polygon_idx && j == this.vert_idx) {
+            done = true;
+            const x = p5.Vector.lerp(p0, p1, this.curr_edge_completion);
+            line(p0.x, p0.y, x.x, x.y);
+            break;
+          } else {
+            line(p0.x, p0.y, p1.x, p1.y);
+          }
+        }
+      }
+      pop();
+    }
   }
   
   IsDone() {
@@ -317,7 +356,9 @@ class PolygonGrapher extends MyStuff {
         const d0 = p5.Vector.lerp(p0, p1, this.curr_edge_completion);
         const d1 = p5.Vector.lerp(p0, p1, new_completion);
 
-        this.g.line(d0.x, d0.y, d1.x, d1.y);
+        if (this.buffered) {
+          this.g.line(d0.x, d0.y, d1.x, d1.y);
+        }
 
         this.curr_edge_completion = new_completion;
         if (new_completion >= 1) {
