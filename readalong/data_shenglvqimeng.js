@@ -1003,7 +1003,20 @@ const DATA = [
     [ "河水一源形弥弥，泰山万仞势岩岩。", "he shui yi yuan xing mi mi tai shan wan ren shi yan yan" ],
     [ "郑为武公，赋缁衣而美德；", "zheng wei wu gong fu zi yi er mei de" ],
     [ "周因巷伯，歌贝锦以伤谗。", "zhou yin xiang bo ge bei jin yi shang chan" ],
-  ]
+  ],
+  [
+    [ "世事无相，相由心生", "shi shi wu xiang xiang you xin sheng" ],
+    [ "可见之物，实为非物", "ke jian zhi wu shi wei fei wu" ],
+    [ "可感之事，实为非事", "ke gan zhi shi shi wei fei shi" ],
+    [ "物事皆空，实为心瘴", "wu shi jie kong shi wei xin zhang" ],
+    [ "俗人之心，处处皆狱", "su ren zhi xin chu chu jie yu" ],
+    [ "惟有化世，堪为无我", "wei you hua shi kan wei wu wo" ],
+    [ "我即为世，世即为我", "wo ji wei shi shi ji wei wo" ],
+    [ "命由己造，相由心生", "ming wei ji zao xiang you xin sheng" ],
+    [ "世间万物皆是化相", "shi jian wan wu jie shi hua xiang" ],
+    [ "心不动，万物皆不动", "xin bu dong wan wu jie bu dong" ],
+    [ "心不变，万物皆不变", "xin bu bian wan wu jie bu bian" ],
+  ],
 ]
 
 const TITLES = [
@@ -1079,6 +1092,7 @@ const TITLES = [
   "声律启蒙 卷下 十三覃\n清 车万育",
   "声律启蒙 卷下 十四盐\n清 车万育",
   "声律启蒙 卷下 十五咸\n清 车万育",
+  "《无常经》节选(?)"
 ]
 
 const FONT_SIZES = [
@@ -1086,4 +1100,5 @@ const FONT_SIZES = [
   26,26,26,26,26,26, 26,26,26,26,26,26, 26,26,26,26,26,26,
   24,24,24,24,24, 24,24,24,24,24, 24,24,24,24,24,
   24,24,24,24,24, 24,24,24,24,24, 24,24,24,24,24,
+  32
 ]
