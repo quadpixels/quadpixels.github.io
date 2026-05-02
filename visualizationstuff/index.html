@@ -167,6 +167,15 @@
     });
 
     placeholderLink.click();
+
+    // 强制上排链接在 iframe 打开（不依赖 target 解析）
+    document.querySelectorAll(".top .links a[target='preview']").forEach((a) => {
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        previewFrame.src = a.getAttribute("href");
+      });
+    });
+
   </script>
 </body>
 </html>
