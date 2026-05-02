@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viz Stuff</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .top {
+      height: 20pt; /* 初始高度 */
+      padding: 1px;
+      box-sizing: border-box;
+      overflow: auto;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .resizer {
+      height: 8px;
+      background: #f2f2f2;
+      cursor: row-resize;
+      border-top: 1px solid #ddd;
+      border-bottom: 1px solid #ddd;
+      flex: 0 0 auto;
+    }
+
+    .resizer:hover {
+      background: #e5e5e5;
+    }
+
+    .bottom {
+      flex: 1;
+      min-height: 80px;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+
+    .links a {
+      display: inline-block;
+      color: #0080FF;
+    }
+    .links {
+      white-space: nowrap;   /* 不换行 */
+      overflow-x: auto;      /* 超出后横向滚动 */
+    }
+  </style>
+</head>
+<body>
+  <div class="top" id="topPane">
+    <span class="links" style="overscroll-behavior-x: contain; width:100%">
+        <a href="#" id="placeholderLink"><b>Viz Stuff!</b></a>
+        <a href="./LeetCode_20200903/index.html" target="preview">20200903</a>
+        <a href="./LeetCode2188/index.html" target="preview">2188</a>
+        <a href="./LeetCodeWeekly_197_4/index.html" target="preview">Weekly197_4</a>
+        <a href="./LeetCodeWeekly_199_4/index.html" target="preview">Weekly199_4</a>
+        <a href="./LeetCodeWeekly_201_4/index.html" target="preview">Weekly201_4</a>
+        <a href="./QuickSort/index.html" target="preview">Quicksort</a>
+        <a href="./Lyrics20210206/client/index.html?solo=1" target="preview">合成𝄞</a>
+    </span>
+  </div>
+
+  <div class="resizer" id="resizer" aria-label="拖拽分隔条"></div>
+
+  <div class="bottom">
+    <iframe id="previewFrame" name="preview" title="预览区"></iframe>
+  </div>
+
+  <script>
+    const topPane = document.getElementById("topPane");
+    const resizer = document.getElementById("resizer");
+    const placeholderLink = document.getElementById("placeholderLink");
+    const previewFrame = document.getElementById("previewFrame");
+
+    let dragging = false;
+
+    resizer.addEventListener("mousedown", () => {
+      dragging = true;
+      document.body.style.userSelect = "none";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+
+      const min = 80;
+      const max = window.innerHeight - min - resizer.offsetHeight;
+      const next = Math.min(Math.max(e.clientY, min), max);
+
+      topPane.style.height = next + "px";
+    });
+
+    window.addEventListener("mouseup", () => {
+      dragging = false;
+      document.body.style.userSelect = "";
+    });
+
+    placeholderLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      previewFrame.srcdoc = `
+        <!doctype html>
+        <html lang="zh-CN">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Placeholder</title>
+            <style>
+              html, body { height: 100%; margin: 0; }
+              body {
+                display: grid;
+                place-items: center;
+                font-family: sans-serif;
+                color: #666;
+                background: #fafafa;
+              }
+              .box {
+                padding: 24px 28px;
+                border: 1px dashed #bbb;
+                border-radius: 10px;
+                background: #fff;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="box">请点一个链接呗！
+                <div class="links">
+                    <br/>
+                    <details open>
+                    <summary>千本算法题相关</summary>
+                    <a href="./LeetCode_20200903/index.html" target="preview">20200903 (Repeated String Pattern)</a><br/>
+                    <a href="./LeetCode2188/index.html" target="preview">2188 (Minimum Time to Finish the Race)</a><br/>
+                    <a href="./LeetCodeWeekly_197_4/index.html" target="preview">Weekly197_4 (Best Position for a Service Centre)</a><br/>
+                    <a href="./LeetCodeWeekly_199_4/index.html" target="preview">Weekly199_4 (String Compression II)</a><br/>
+                    <a href="./LeetCodeWeekly_201_4/index.html" target="preview">Weekly201_4 (Minimum Cost to Cut a Stick)</a><br/>
+                    <a href="./QuickSort/index.html" target="preview">Quicksort</a><br/>
+                    <a href="./Lyrics20210206/client/index.html?solo=1" target="preview">合成高音谱号（𝄞）</a><br/>
+                    </details>
+
+                    <br/>
+                    <details>
+                    <summary>旧物</summary>
+                    <a href="./Lyrics20201004/index.html" target="preview">Lyrics20201004</a><br/>
+                    <a href="./Lyrics20201011/index.html" target="preview">Lyrics20201011</a><br/>
+                    <a href="./Lyrics20201108/index.html" target="preview">Lyrics20201108</a><br/>
+                    <a href="./zgzg_xcjc_2_2/index.html" target="preview">2020中秋</a><br/>
+                    <a href="./zgzgxcjc2020s/index.html" target="preview">2020总结</a><br/>
+                    </details>
+                </div>
+            </div>
+          </body>
+        </html>
+      `;
+    });
+
+    placeholderLink.click();
+  </script>
+</body>
+</html>
