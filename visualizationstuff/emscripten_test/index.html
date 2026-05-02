@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8" />
+  </head>
+  <body onload="LoadSketches()">
+    <h2>Sketches</h2>
+
+    <ol>
+      <li>convert1darrayto2d</li>
+      <iframe id="frame_a" src="about:blank" width="320px" height="200px" style="border:1px grey solid;"></iframe>
+      <br/><br/>
+      <li>quicksort</li>
+      <iframe id="frame_b" src="about:blank" width="520px" height="200px" style="border:1px grey solid;"></iframe>
+      <br/><br/>
+    </ol>
+
+    <script type="text/javascript">
+      let p5include = '<scr' + 'ipt src="p5.js"></scr' + 'ipt>' +
+                      '<scr' + 'ipt src="p5.sound.min.js"></scr' + 'ipt>';
+      function LoadSketches() {
+        let doc = document.getElementById("frame_a").contentWindow.document;
+        doc.open();
+        doc.write("<html><head><title></title></head>");
+        doc.write("<body>");
+        doc.write(p5include);
+        doc.write('<scr' + 'ipt src="sketch.js">');
+        doc.write('</scr' + 'ipt>');
+        doc.write('<scr' + 'ipt src="a.out.js"></scr' + 'ipt>');
+        doc.write('</body></html>');
+        doc.close();
+
+        doc = document.getElementById("frame_b").contentWindow.document;
+        doc.open();
+        doc.write("<html><head><title></title></head>");
+        doc.write("<body>");
+        doc.write(p5include);
+        doc.write('<scr' + 'ipt src="sketch2.js">');
+        doc.write('</scr' + 'ipt>');
+        doc.write('<scr' + 'ipt src="b.out.js"></scr' + 'ipt>');
+        doc.write('</body></html>');
+        doc.close();
+      }
+    </script>
+  </body>
+</html>
