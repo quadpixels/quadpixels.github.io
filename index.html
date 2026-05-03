@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Viz Stuff</title>
+  <title>千本算法题及其它</title>
   <style>
     html, body {
       margin: 0;
@@ -65,13 +65,22 @@
   <div class="top" id="topPane">
     <span class="links" style="overscroll-behavior-x: contain; width:100%">
         <a href="#" id="placeholderLink"><b>Viz Stuff!</b></a>
-        <a href="./LeetCode_20200903/index.html" target="preview">20200903</a>
+        <a href="./LeetCode459/index.html" target="preview">459</a>
+        <a href="./LeetCode564/index.html" target="preview">564</a>
+        <a href="./LeetCode587/index.html" target="preview">587</a>
+        <a href="./LeetCode1143/index.html" target="preview">1143</a>
+        <a href="./LeetCode1368/index.html" target="preview">1368</a>
+        <a href="./LeetCode1515/index.html" target="preview">1515</a>
+        <a href="./LeetCode1531/index.html" target="preview">1531</a>
+        <a href="./LeetCode1547/index.html" target="preview">1547</a>
+        <a href="./LeetCode1675/index.html" target="preview">1675</a>
         <a href="./LeetCode2188/index.html" target="preview">2188</a>
-        <a href="./LeetCodeWeekly_197_4/index.html" target="preview">Weekly197_4</a>
-        <a href="./LeetCodeWeekly_199_4/index.html" target="preview">Weekly199_4</a>
-        <a href="./LeetCodeWeekly_201_4/index.html" target="preview">Weekly201_4</a>
+        <a href="./LeetCode2197/index.html" target="preview">2197</a>
+        <a href="./LeetCode2449/index.html" target="preview">2449</a>
+        <a href="./LeetCode2772/index.html" target="preview">2772</a>
         <a href="./QuickSort/index.html" target="preview">Quicksort</a>
-        <a href="./Lyrics20210206/client/index.html?solo=1" target="preview">合成𝄞</a>
+        <a href="./astar/index.html" target="preview">A*</a>
+        <a href="./Lyrics20210206/client/index.html?solo=1" target="preview">𝄞</a>
     </span>
   </div>
 
@@ -124,7 +133,7 @@
                 display: grid;
                 place-items: center;
                 font-family: sans-serif;
-                color: #666;
+                color: #0080FF;
                 background: #fafafa;
               }
               .box {
@@ -132,6 +141,10 @@
                 border: 1px dashed #bbb;
                 border-radius: 10px;
                 background: #fff;
+              }
+              small {
+                color: #aaaaaa;
+                font-size: 8pt;
               }
             </style>
           </head>
@@ -141,23 +154,55 @@
                     <br/>
                     <details open>
                     <summary>千本算法题相关</summary>
-                    <a href="./LeetCode_20200903/index.html" target="preview">20200903 (Repeated String Pattern)</a><br/>
-                    <a href="./LeetCode2188/index.html" target="preview">2188 (Minimum Time to Finish the Race)</a><br/>
-                    <a href="./LeetCodeWeekly_197_4/index.html" target="preview">Weekly197_4 (Best Position for a Service Centre)</a><br/>
-                    <a href="./LeetCodeWeekly_199_4/index.html" target="preview">Weekly199_4 (String Compression II)</a><br/>
-                    <a href="./LeetCodeWeekly_201_4/index.html" target="preview">Weekly201_4 (Minimum Cost to Cut a Stick)</a><br/>
-                    <a href="./QuickSort/index.html" target="preview">Quicksort</a><br/>
-                    <a href="./Lyrics20210206/client/index.html?solo=1" target="preview">合成高音谱号（𝄞）</a><br/>
+                    <a href="./LeetCode459/index.html" target="preview">459 (Repeated String Pattern)</a><small> p5js v0.10.2</small><br/>
+                    <a href="./LeetCode564/index.html" target="preview">564 (Find the Closest Palindrome)</a><small> p5js v1.10.0, emscripten</small><br/>
+                    <a href="./LeetCode587/index.html" target="preview">587 (Erect the Fence)</a><small> p5js v1.4.0, emscripten</small><br/>
+                    <a href="./LeetCode1143/index.html" target="preview">1143 (Longest Common Subsequence)</a><small> p5js v1.4.0, emscripten</small><br/>
+                    <a href="./LeetCode1368/index.html" target="preview">1368 (Minimum Cost to Make at Least One Valid Path in a Grid)</a><small> p5js v0.10.2</small><br/>
+                    <a href="./LeetCode1515/index.html" target="preview">1515 (Best Position for a Service Centre)</a><small> p5js v0.10.2</small><br/>
+                    <a href="./LeetCode1531/index.html" target="preview">1531 (String Compression II)</a><small> p5js v0.10.2</small><br/>
+                    <a href="./LeetCode1547/index.html" target="preview">1547 (Minimum Cost to Cut a Stick)</a><small> p5js v1.1.9</small><br/>
+                    <a href="./LeetCode1675/index.html" target="preview">1675 (Minimize Deviation in Array)</a><small> p5js v1.1.9</small><br/>
+                    <a href="./LeetCode2188/index.html" target="preview">2188 (Minimum Time to Finish the Race)</a><small> p5js v1.4.0, emscripten</small><br/>
+                    <a href="./LeetCode2197/index.html" target="preview">2197 (Replace Non-Coprime Numbers in Array)</a><small> p5js v1.4.0, emscripten</small><br/>
+                    <a href="./LeetCode2449/index.html" target="preview">2449 (Minimum Number of Operations to Make Arrays Similar)</a><small> p5js v1.4.1</small><br/>
+                    <a href="./LeetCode2772/index.html" target="preview">2772 (Apply Operations to Make All Array Elements Equal to Zero)</a><small> p5js v1.6.0, emscripten</small><br/>
+                    <a href="./QuickSort/index.html" target="preview">Quicksort</a><small> p5js v1.11.0, emscripten</small><br/>
+                    <a href="./astar/index.html" target="preview">A star</a><small> p5js v1.1.9</small><br/>
+                    <a href="./Lyrics20210206/client/index.html?solo=1" target="preview">合成高音谱号（𝄞）</a><small> p5js v1.2.0, 2D刚体</small><br/>
                     </details>
 
                     <br/>
                     <details>
-                    <summary>旧物</summary>
-                    <a href="./Lyrics20201004/index.html" target="preview">Lyrics20201004</a><br/>
-                    <a href="./Lyrics20201011/index.html" target="preview">Lyrics20201011</a><br/>
-                    <a href="./Lyrics20201108/index.html" target="preview">Lyrics20201108</a><br/>
-                    <a href="./zgzg_xcjc_2_2/index.html" target="preview">2020中秋</a><br/>
-                    <a href="./zgzgxcjc2020s/index.html" target="preview">2020总结</a><br/>
+                    <summary>其它试验</summary>
+                    <a href="./Lyrics20201004/index.html" target="preview">Lyrics20201004</a><small> p5js v0.10.2</small><br/>
+                    <a href="./Lyrics20201011/index.html" target="preview">Lyrics20201011</a><small> p5js v0.10.2</small><br/>
+                    <a href="./Lyrics20201108/index.html" target="preview">Lyrics20201108</a><small> p5js v0.10.2</small><br/>
+                    <a href="./Lyrics20201206/index.html?solo=1" target="preview">Lyrics20201206</a><small> p5js v1.4.1, 2D刚体</small><br/>
+                    <a href="./zgzg_xcjc_2_2/index.html" target="preview">2020中秋</a><small> p5js v0.10.2</small><br/>
+                    <a href="./zgzgxcjc2020s/index.html" target="preview">2020总结</a><small> p5js v0.10.2</small><br/>
+                    <a href="./ggtkx_2drt/index.html" target="preview">2DRT，硅谷脱口秀</a><small> p5js v0.10.2, 吃CPU</small><br/>
+                    <a href="./iphone13_2drt/index.html" target="preview">2DRT, iPhone 13</a><small> p5js v0.10.2, 吃CPU</small><br/>
+                    <a href="./games201_2drt/index.html" target="preview">2DRT, Games 201</a><small> p5js v0.10.2, 吃CPU</small><br/>
+                    <a href="./Coord/index.html" target="preview">2D坐标转换</a><small> p5js v0.10.2</small><br/>
+                    <a href="./SixDegreesOfFreedom/index.html" target="preview">6DOF摄像机</a><small> p5js v0.10.2, use [Q,W,E,A,S,D][R,T,Y,F,G,H] keys</small><br/>
+                    <a href="./StarBG/index.html" target="preview">Star BG</a><small> p5js v1.1.9</small><br/>
+                    <a href="./I2CTxnViz/index.html" target="preview">I2CTxnViz</a><small> p5js v1.1.9</small><br/>
+                    <a href="./Cat/index.html" target="preview">大猫</a><small> p5js v1.11.0</small><br/>
+                    </details>
+
+                    <br/>
+                    <details>
+                    <summary>光追相关</summary>
+                    <a href="./OBB/index.html" target="preview">OBB</a><small> p5js v1.11.7</small><br/>
+                    <a href="./FibonacciCurve/index.html" target="preview">FibonacciCurve</a><small> p5js v1.11.7</small><br/>
+                    <a href="./IntersectionTest/index.html" target="preview">IntersectionTest</a><small> p5js v1.11.11</small><br/>
+                    </details>
+
+                    <br/>
+                    <details open>
+                    <summary>说明</summary>
+                    <small>带有Modules和耗CPU（无限循环）的自从2026年的某天不能在p5js editor上运行了，所以搬这里来。</small>
                     </details>
                 </div>
             </div>
@@ -172,6 +217,7 @@
     document.querySelectorAll(".top .links a[target='preview']").forEach((a) => {
       a.addEventListener("click", (e) => {
         e.preventDefault();
+        previewFrame.removeAttribute("srcdoc"); // 关键
         previewFrame.src = a.getAttribute("href");
       });
     });
