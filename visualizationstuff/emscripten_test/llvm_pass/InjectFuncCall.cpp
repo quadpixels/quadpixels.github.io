@@ -42,9 +42,10 @@ make
 #include "InjectFuncCall.h"
 
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Plugins/PassPlugin.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/DebugProgramInstruction.h"
 #include "llvm/Demangle/Demangle.h"
 
 using namespace llvm;
@@ -79,7 +80,8 @@ bool InjectFuncCall::runOnModule(Module &M) {
   // Set attributes as per inferLibFuncAttributes in BuildLibCalls.cpp
   Function *PrintfF = dyn_cast<Function>(Printf.getCallee());
   PrintfF->setDoesNotThrow();
-  PrintfF->addParamAttr(0, Attribute::NoCapture);
+  PrintfF->addParamAttr(
+      0, Attribute::getWithCaptureInfo(CTX, CaptureInfo::none()));
   PrintfF->addParamAttr(0, Attribute::ReadOnly);
 
   // Inject the declaration of our EmScripten run-time funcs
@@ -155,16 +157,38 @@ bool InjectFuncCall::runOnModule(Module &M) {
     IRBuilder<> Builder(&*F.getEntryBlock().getFirstInsertionPt());
 
     std::unordered_map<AllocaInst*, StringRef> alloca_to_varname_map;
+    auto RegisterVarBinding = [&](Value *Addr, DILocalVariable *DV) {
+      if (!Addr || !DV) return;
+      Value *Base = Addr->stripPointerCasts();
+      if (auto *AI = dyn_cast<AllocaInst>(Base)) {
+        alloca_to_varname_map[AI] = DV->getName();
+      }
+    };
 
     for (auto& BB : F) {
         errs() << "Func:      " << F.getName() << "\n";
         errs() << "Demangled: " << demangled << "\n";
         for (auto &I : BB) {
+            // Legacy debug-info representation: dbg.declare intrinsics.
             if (auto* dbgDeclare = dyn_cast<DbgDeclareInst>(&I)) {
-                if (auto* ai = dyn_cast<AllocaInst>(dbgDeclare->getAddress())) {
-                    if (const auto& dv = dbgDeclare->getVariable()) {
-                        errs() << "Local var: " << dv->getName() << " (" << *ai << ")\n";
-                        alloca_to_varname_map[ai] = dv->getName();
+                if (const auto& dv = dbgDeclare->getVariable()) {
+                    RegisterVarBinding(dbgDeclare->getAddress(), dv);
+                    if (auto* ai = dyn_cast<AllocaInst>(dbgDeclare->getAddress()->stripPointerCasts())) {
+                        errs() << "Local var (intrinsic): " << dv->getName() << " (" << *ai << ")\n";
+                    }
+                }
+            }
+
+            // New debug-info representation: #dbg_declare records attached to instructions.
+            for (DbgRecord &DR : I.getDbgRecordRange()) {
+                auto *DVR = dyn_cast<DbgVariableRecord>(&DR);
+                if (!DVR || !DVR->isDbgDeclare()) continue;
+                if (auto *DV = DVR->getVariable()) {
+                    Value *Addr = DVR->getAddress();
+                    RegisterVarBinding(Addr, DV);
+                    if (auto *AI = dyn_cast_or_null<AllocaInst>(
+                            Addr ? Addr->stripPointerCasts() : nullptr)) {
+                        errs() << "Local var (record): " << DV->getName() << " (" << *AI << ")\n";
                     }
                 }
             }
@@ -211,28 +235,28 @@ bool InjectFuncCall::runOnModule(Module &M) {
 
                     if (auto* ai = dyn_cast<AllocaInst>(ptr)) {
                         auto it = alloca_to_varname_map.find(ai);
-                        if (it != alloca_to_varname_map.end()) {
-                            errs() << "Write local array: " << it->second << " at instr: "
-                                   << I << ", indices:";
-                            errs() << *(gep->getOperand(2)) << " ";
-                            errs() << "\n";
+                        StringRef varName =
+                            (it != alloca_to_varname_map.end()) ? it->second : StringRef("local_1d");
+                        errs() << "Write local array: " << varName << " at instr: "
+                               << I << ", indices:";
+                        errs() << *(gep->getOperand(2)) << " ";
+                        errs() << "\n";
 
-                            IRBuilder<> B(&I);
-                            llvm::Constant* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(CTX), 0);
-                            llvm::Value *format_str_ptr =
-                                B.CreateGEP(
-                                    dyn_cast<GlobalVariable>(WriteArrayFormatStrVar)->getValueType(),
-                                    dyn_cast<GlobalVariable>(WriteArrayFormatStrVar),
-                                    {zero, zero},
-                                    "formatStr");
-                            llvm::Constant* VarName = Builder.CreateGlobalStringPtr(it->second);  // @3 = private unnamed_addr constant [2 x i8] c"a\00", align 1
+                        IRBuilder<> B(&I);
+                        llvm::Constant* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(CTX), 0);
+                        llvm::Value *format_str_ptr =
+                            B.CreateGEP(
+                                dyn_cast<GlobalVariable>(WriteArrayFormatStrVar)->getValueType(),
+                                dyn_cast<GlobalVariable>(WriteArrayFormatStrVar),
+                                {zero, zero},
+                                "formatStr");
+                        llvm::Constant* VarName = Builder.CreateGlobalStringPtr(varName);
+                        B.CreateCall(
+                            Printf, {format_str_ptr, VarName, gep->getOperand(2), SI->getValueOperand()});
+
+                        {  // Assuming indices are 32-bit (this is the case when building for wasm32)
                             B.CreateCall(
-                                Printf, {format_str_ptr, VarName, gep->getOperand(2), SI->getValueOperand()});
-
-                            {  // Assuming indices are 32-bit (this is the case when building for wasm32)
-                                B.CreateCall(
-                                    Update1DArray, { VarName, gep->getOperand(2), SI->getValueOperand() });
-                            }
+                                Update1DArray, { VarName, gep->getOperand(2), SI->getValueOperand() });
                         }
                     } else if (auto* gv = dyn_cast<GlobalVariable>(ptr)) {
                         errs() << "Write Global Variable: " << *gv << ", name=" << gv->getName() << "\n";
@@ -257,29 +281,29 @@ bool InjectFuncCall::runOnModule(Module &M) {
                         errs() << "GEP2 " << *ptr << "\n";
                         if (auto* ai = dyn_cast<AllocaInst>(ptr)) {
                             auto it = alloca_to_varname_map.find(ai);
-                            if (it != alloca_to_varname_map.end()) {
-                                errs() << "Write local 2d array: " << it->second << " at instr: "
-                                    << I << ", indices: ";
-                                errs() << *(gep2->getOperand(2)) << ", " << *(gep->getOperand(2));
-                                errs() << "\n";
+                            StringRef varName =
+                                (it != alloca_to_varname_map.end()) ? it->second : StringRef("local_2d");
+                            errs() << "Write local 2d array: " << varName << " at instr: "
+                                << I << ", indices: ";
+                            errs() << *(gep2->getOperand(2)) << ", " << *(gep->getOperand(2));
+                            errs() << "\n";
 
-                                llvm::Constant* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(CTX), 0);
-                                
+                            llvm::Constant* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(CTX), 0);
+                            
 
-                                IRBuilder<> B(&I);
-                                llvm::Value *format_str_ptr =
-                                    B.CreateGEP(
-                                        dyn_cast<GlobalVariable>(Write2DArrayFormatStrVar)->getValueType(),
-                                        dyn_cast<GlobalVariable>(Write2DArrayFormatStrVar),
-                                        {zero, zero},
-                                        "formatStrPtr");
-                                auto VarName = Builder.CreateGlobalStringPtr(it->second);
+                            IRBuilder<> B(&I);
+                            llvm::Value *format_str_ptr =
+                                B.CreateGEP(
+                                    dyn_cast<GlobalVariable>(Write2DArrayFormatStrVar)->getValueType(),
+                                    dyn_cast<GlobalVariable>(Write2DArrayFormatStrVar),
+                                    {zero, zero},
+                                    "formatStrPtr");
+                            auto VarName = Builder.CreateGlobalStringPtr(varName);
+                            B.CreateCall(
+                                Printf, {format_str_ptr, VarName, gep2->getOperand(2), gep->getOperand(2), SI->getValueOperand()});
+                            {
                                 B.CreateCall(
-                                    Printf, {format_str_ptr, VarName, gep2->getOperand(2), gep->getOperand(2), SI->getValueOperand()});
-                                {
-                                    B.CreateCall(
-                                        Update2DArray, { VarName, gep2->getOperand(2), gep->getOperand(2), SI->getValueOperand() });
-                                }
+                                    Update2DArray, { VarName, gep2->getOperand(2), gep->getOperand(2), SI->getValueOperand() });
                             }
                         }
                     } else {
@@ -317,10 +341,12 @@ bool InjectFuncCall::runOnModule(Module &M) {
                         B.CreateCall(
                             Update1DArray, { VarName, zero, SI->getValueOperand() });
                     }
-                } else if (auto* ci = dyn_cast<CallInst>(dest)) { // std::__2::vector<int, std::__2::allocator<int> >::operator[][abi:ne180100](unsigned long)
-                    std::string fn(ci->getCalledFunction()->getName());
-                    fn = llvm::demangle(fn);
-                    if (fn.find("std::__2::vector") != std::string::npos &&
+                } else if (auto* ci = dyn_cast<CallInst>(dest)) { // std::vector::operator[]
+                    Function* calledFn = ci->getCalledFunction();
+                    if (!calledFn) continue;
+                    std::string fn = llvm::demangle(calledFn->getName().str());
+                    // Be robust across libc++ ABI namespace versions (__1/__2/...) and tags.
+                    if (fn.find("vector") != std::string::npos &&
                         fn.find("operator[]") != std::string::npos) {
                         errs() << "  vector::operator[] called with " << ci->getNumOperands() << " args\n";
                         for (int arg_idx = 0; arg_idx < ci->getNumOperands(); arg_idx++) {
@@ -330,28 +356,27 @@ bool InjectFuncCall::runOnModule(Module &M) {
                         AllocaInst* arg0 = dyn_cast<AllocaInst>(ci->getOperand(0));
                         if (arg0) {
                             auto it = alloca_to_varname_map.find(arg0);
-                            if (it != alloca_to_varname_map.end()) {
-                                errs() << "Write local vector: " << it->second << " at instr: "
-                                    << I << ", indices:";
-                                errs() << *(ci->getOperand(1)) << " ";
-                                errs() << "\n";
+                            StringRef varName = (it != alloca_to_varname_map.end()) ? it->second : StringRef("vector");
+                            errs() << "Write local vector: " << varName << " at instr: "
+                                   << I << ", indices:";
+                            errs() << *(ci->getOperand(1)) << " ";
+                            errs() << "\n";
 
-                                IRBuilder<> B(&I);
-                                llvm::Constant* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(CTX), 0);
-                                llvm::Value *format_str_ptr =
-                                    B.CreateGEP(
-                                        dyn_cast<GlobalVariable>(WriteArrayFormatStrVar)->getValueType(),
-                                        dyn_cast<GlobalVariable>(WriteArrayFormatStrVar),
-                                        {zero, zero},
-                                        "formatStr");
-                                llvm::Constant* VarName = Builder.CreateGlobalStringPtr(it->second);  // @3 = private unnamed_addr constant [2 x i8] c"a\00", align 1
+                            IRBuilder<> B(&I);
+                            llvm::Constant* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(CTX), 0);
+                            llvm::Value *format_str_ptr =
+                                B.CreateGEP(
+                                    dyn_cast<GlobalVariable>(WriteArrayFormatStrVar)->getValueType(),
+                                    dyn_cast<GlobalVariable>(WriteArrayFormatStrVar),
+                                    {zero, zero},
+                                    "formatStr");
+                            llvm::Constant* VarName = Builder.CreateGlobalStringPtr(varName);
+                            B.CreateCall(
+                                Printf, {format_str_ptr, VarName, ci->getOperand(1), SI->getValueOperand()});
+
+                            {  // Assuming indices are 32-bit (this is the case when building for wasm32)
                                 B.CreateCall(
-                                    Printf, {format_str_ptr, VarName, ci->getOperand(1), SI->getValueOperand()});
-
-                                {  // Assuming indices are 32-bit (this is the case when building for wasm32)
-                                    B.CreateCall(
-                                        Update1DArray, { VarName, ci->getOperand(1), SI->getValueOperand() });
-                                }
+                                    Update1DArray, { VarName, ci->getOperand(1), SI->getValueOperand() });
                             }
                         }
                     }

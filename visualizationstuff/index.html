@@ -152,7 +152,7 @@
             <div class="box">请点一个链接呗！
                 <div class="links">
                     <br/>
-                    <details open>
+                    <details id="grp-algo" open>
                     <summary>千本算法题相关</summary>
                     <a href="./LeetCode459/index.html" target="preview">459 (Repeated String Pattern)</a><small> p5js v0.10.2</small><br/>
                     <a href="./LeetCode564/index.html" target="preview">564 (Find the Closest Palindrome)</a><small> p5js v1.10.0, emscripten</small><br/>
@@ -173,7 +173,7 @@
                     </details>
 
                     <br/>
-                    <details>
+                    <details id="grp-other">
                     <summary>其它试验</summary>
                     <a href="./Lyrics20201004/index.html" target="preview">Lyrics20201004</a><small> p5js v0.10.2</small><br/>
                     <a href="./Lyrics20201011/index.html" target="preview">Lyrics20201011</a><small> p5js v0.10.2</small><br/>
@@ -189,10 +189,11 @@
                     <a href="./StarBG/index.html" target="preview">Star BG</a><small> p5js v1.1.9</small><br/>
                     <a href="./I2CTxnViz/index.html" target="preview">I2CTxnViz</a><small> p5js v1.1.9</small><br/>
                     <a href="./Cat/index.html" target="preview">大猫</a><small> p5js v1.11.0</small><br/>
+                    <a href="./emscripten_test/index.html" target="preview">工房</a><small> p5js v1.10.0, emscripten, LLVM</small><br/>
                     </details>
 
                     <br/>
-                    <details>
+                    <details id="grp-rt">
                     <summary>光追相关</summary>
                     <a href="./OBB/index.html" target="preview">OBB</a><small> p5js v1.11.7</small><br/>
                     <a href="./FibonacciCurve/index.html" target="preview">FibonacciCurve</a><small> p5js v1.11.7</small><br/>
@@ -200,12 +201,27 @@
                     </details>
 
                     <br/>
-                    <details open>
+                    <details id="grp-note" open>
                     <summary>说明</summary>
                     <small>带有Modules和耗CPU（无限循环）的自从2026年的某天不能在p5js editor上运行了，所以搬这里来。</small>
                     </details>
                 </div>
             </div>
+            <scr` + `ipt>
+              const KEY = "viz_details_state_v1";
+              const detailsList = [...document.querySelectorAll("details[id]")];
+              const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+              detailsList.forEach((d) => {
+                if (saved[d.id] !== undefined) d.open = !!saved[d.id];
+              });
+              detailsList.forEach((d) => {
+                d.addEventListener("toggle", () => {
+                  const curr = JSON.parse(localStorage.getItem(KEY) || "{}");
+                  curr[d.id] = d.open;
+                  localStorage.setItem(KEY, JSON.stringify(curr));
+                });
+              });
+            </scr` + `ipt>
           </body>
         </html>
       `;

@@ -262,7 +262,6 @@ function AutorunCallback() {
 }
 
 function Update1DArray(name, idx, val) {
-  console.log("Update1DArray " + name + " " + idx + " " + val);
   if (name == "arr" ||
       name == "g_state" ||
       name == "marker" ||
