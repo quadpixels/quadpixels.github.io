@@ -94,11 +94,13 @@ function draw() {
 
 function Update1DArray(name, idx, val) {
   //g_a.elts[0][idx] = val;
+  console.log("Update1DArray " + name + " " + idx + " " + val);
   g_actions.push([name, 0, idx, val]);
 }
 
 function Update2DArray(name, r, c, val) {
   //g_b.elts[r][c] = val;
+  console.log("Update2DArray " + name + " " + r + " " + c + " " + val);
   g_actions.push([name, r, c, val]);
 }
 

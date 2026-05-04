@@ -44,7 +44,7 @@ The organization simplifies Step #2 in the following workflow:
 
 ## Building and Testing
 
-Only supports my WSL setup for now
+Supports my WSL setup and macOS setup for now.
 
 - Build / clean
 
